@@ -5,6 +5,11 @@ from distutils.dir_util import copy_tree
 import shutil
 import time
 
+#pending work:
+#- make the coarse solver a coarse solver: how can the config files for the coarse solver be adjusted such that it is really coarse? Simply increasing deltaT leads to an error. Maybe also the solvers and their tolerance need to be adjusted.
+#- check for convergence: how to compare output of one timeslice with input of following timeslice?
+#- execute in parallel: how can the subprocesses for the fine solvers be executed in parallel?
+
 def modify_param_controlDict(folder, param, value):
 	f = open(folder + "/system/controlDict", 'r')
 	inlines = f.readlines()
