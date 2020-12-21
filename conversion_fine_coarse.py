@@ -60,8 +60,8 @@ def construct_fine_version_of_other_files(inlines,outlines):
     firstpart_with_values = False
     otherparts_with_values = False
     processing_values = False   
-    part1 = ""
-    part2 = ""     
+    part = ""   
+    counter = 1
     for line in inlines:
         if is_int(line):
             if not firstpart_with_values:
@@ -71,20 +71,84 @@ def construct_fine_version_of_other_files(inlines,outlines):
             outlines.append(line)
         elif (len(line) == 2 and ")" in line):
             processing_values = False
-            outlines.append(part1)
-            outlines.append(part2)
-            part1 = ""
-            part2 = ""
             outlines.append(line)
         elif processing_values:
             if otherparts_with_values:
-                part1 = part1 + line
-                part2 = part2 + line
+                outlines.append(line + line)
             elif firstpart_with_values:
-                part1 = part1 + line
-                part2 = part2 + line
-                part1 = part1 + line
-                part2 = part2 + line
+                if counter <= 100:
+                    #box 1: 10 x 10 (coarse)
+                    part = part + line + line
+                    if ((counter-0) % 10) == 0:
+                        outlines.append(part + part)
+                        part = ""
+                elif counter <= 300:
+                    #box 2: 20 x 10 (coarse)
+                    part = part + line + line
+                    if ((counter-100) % 20) == 0:
+                        outlines.append(part + part)
+                        part = ""
+                elif counter <= 1050:
+                    #box 3: 75 x 10 (coarse)
+                    part = part + line + line
+                    if ((counter-300) % 75) == 0:
+                        outlines.append(part + part)
+                        part = ""
+                elif counter <= 1250:
+                    #box 4: 10 x 20 (coarse)
+                    part = part + line + line
+                    if ((counter-1050) % 10) == 0:
+                        outlines.append(part + part)
+                        part = ""
+                elif counter <= 2750:
+                    #box 5: 75 x 20 (coarse)
+                    part = part + line + line
+                    if ((counter-1250) % 75) == 0:
+                        outlines.append(part + part)
+                        part = ""
+                elif counter <= 2850:
+                    #box 6: 10 x 10 (coarse)
+                    part = part + line + line
+                    if ((counter-2750) % 10) == 0:
+                        outlines.append(part + part)
+                        part = ""
+                elif counter <= 3050:
+                    #box 7: 20 x 10 (coarse)
+                    part = part + line + line
+                    if ((counter-2850) % 20) == 0:
+                        outlines.append(part + part)
+                        part = ""
+                elif counter <= 3800:
+                    #box 8: 75 x 10 (coarse)
+                    part = part + line + line
+                    if ((counter-3050) % 75) == 0:
+                        outlines.append(part + part)
+                        part = ""
+                elif counter <= 4300:
+                    #box 9: 20 x 25 (coarse)
+                    part = part + line + line
+                    if ((counter-3800) % 20) == 0:
+                        outlines.append(part + part)
+                        part = ""
+                elif counter <= 4800:
+                    #box 10: 25 x 20 (coarse)
+                    part = part + line + line
+                    if ((counter-4300) % 25) == 0:
+                        outlines.append(part + part)
+                        part = ""
+                elif counter <= 5300:
+                    #box 11: 20 x 25 (coarse)
+                    part = part + line + line
+                    if ((counter-4800) % 20) == 0:
+                        outlines.append(part + part)
+                        part = ""
+                elif counter <= 5800:
+                    #box 12: 25 x 20 (coarse)
+                    part = part + line + line
+                    if ((counter-0) % 25) == 0:
+                        outlines.append(part + part)
+                        part = ""
+                counter = counter + 1
         elif (len(line) == 2 and "(" in line):
             processing_values = True
             if not firstpart_with_values:
