@@ -1,3 +1,6 @@
+#NOT WORKING
+#this method should construct the finer phi files from the coarse ones
+#...but I don't understand by now how this conversion should work
 def construct_fine_version_of_phi(inlines,outlines):
     firstpart_with_values = False
     otherparts_with_values = False
@@ -56,99 +59,98 @@ def construct_fine_version_of_phi(inlines,outlines):
             outlines.append(line)
     return outlines
 
+#constructs the fine versions of all files except for phi from the output of the coarse solver
+#params
+#inlines = lines from the coarse input file
+#outlines = lines for the new fine file
 def construct_fine_version_of_other_files(inlines,outlines):
+    #the files share the common structure, that 
+    #- the first block of values needs to be scaled by factor 4 (values in blocks)
+    #- and the other parts need to be scaled by a factor of 2 (inlet/outlet)
+    #Those blocks of values are surrounded by ( and ).
+    #On top of a block of values the number of values in this block is denoted.
+    #
+    #example:
+    #...
+    #5800
+    #(
+    #value1
+    #...
+    #value5800
+    #)
+    #...
     firstpart_with_values = False
     otherparts_with_values = False
     processing_values = False   
-    part = ""   
+    #for the scaling by factor 4 every entry 
+    #- has to be doubled in its 'line' (*width_of_the_block* successive boxes from one block) 
+    #- and then every 'line' needs to be doubled
+    #the part variable is needed for the doubling of the 'line'
+    part = "" 
+    #counter is needed to keep track of the current box (only in the first part with values) 
     counter = 1
+    #process line after line from the input file
     for line in inlines:
+        #take care of lines that only contain one integer number - this is the number of following values
+        #multiply depending on the following part of values (first part: 4; other parts: 2)
         if is_int(line):
             if not firstpart_with_values:
                 line = str(int(line) * 4) + "\n"
             else:
                 line = str(int(line) * 2) + "\n"
             outlines.append(line)
+        #take care of the ending of a block of values
         elif (len(line) == 2 and ")" in line):
             processing_values = False
             outlines.append(line)
+        #take care of block of values
         elif processing_values:
+            #in the other parts every value needs added twice to the output
             if otherparts_with_values:
                 outlines.append(line + line)
+            #construct output from input depending on the current box
+            #every entry 
+            #- has to be doubled in its 'line' (*width_of_the_block* successive boxes from one block) 
+            #- and then every 'line' needs to be doubled
             elif firstpart_with_values:
                 if counter <= 100:
                     #box 1: 10 x 10 (coarse)
-                    part = part + line + line
-                    if ((counter-0) % 10) == 0:
-                        outlines.append(part + part)
-                        part = ""
+                    part,outlines = convert(0,10,outlines,line,part,counter)
                 elif counter <= 300:
                     #box 2: 20 x 10 (coarse)
-                    part = part + line + line
-                    if ((counter-100) % 20) == 0:
-                        outlines.append(part + part)
-                        part = ""
+                    part,outlines = convert(100,20,outlines,line,part,counter)
                 elif counter <= 1050:
                     #box 3: 75 x 10 (coarse)
-                    part = part + line + line
-                    if ((counter-300) % 75) == 0:
-                        outlines.append(part + part)
-                        part = ""
+                    part,outlines = convert(300,75,outlines,line,part,counter)
                 elif counter <= 1250:
                     #box 4: 10 x 20 (coarse)
-                    part = part + line + line
-                    if ((counter-1050) % 10) == 0:
-                        outlines.append(part + part)
-                        part = ""
+                    part,outlines = convert(1050,10,outlines,line,part,counter)
                 elif counter <= 2750:
                     #box 5: 75 x 20 (coarse)
-                    part = part + line + line
-                    if ((counter-1250) % 75) == 0:
-                        outlines.append(part + part)
-                        part = ""
+                    part,outlines = convert(1250,75,outlines,line,part,counter)
                 elif counter <= 2850:
                     #box 6: 10 x 10 (coarse)
-                    part = part + line + line
-                    if ((counter-2750) % 10) == 0:
-                        outlines.append(part + part)
-                        part = ""
+                    part,outlines = convert(2750,10,outlines,line,part,counter)
                 elif counter <= 3050:
                     #box 7: 20 x 10 (coarse)
-                    part = part + line + line
-                    if ((counter-2850) % 20) == 0:
-                        outlines.append(part + part)
-                        part = ""
+                    part,outlines = convert(2850,20,outlines,line,part,counter)
                 elif counter <= 3800:
                     #box 8: 75 x 10 (coarse)
-                    part = part + line + line
-                    if ((counter-3050) % 75) == 0:
-                        outlines.append(part + part)
-                        part = ""
+                    part,outlines = convert(3050,75,outlines,line,part,counter)
                 elif counter <= 4300:
                     #box 9: 20 x 25 (coarse)
-                    part = part + line + line
-                    if ((counter-3800) % 20) == 0:
-                        outlines.append(part + part)
-                        part = ""
+                    part,outlines = convert(3800,20,outlines,line,part,counter)
                 elif counter <= 4800:
                     #box 10: 25 x 20 (coarse)
-                    part = part + line + line
-                    if ((counter-4300) % 25) == 0:
-                        outlines.append(part + part)
-                        part = ""
+                    part,outlines = convert(4300,25,outlines,line,part,counter)
                 elif counter <= 5300:
                     #box 11: 20 x 25 (coarse)
-                    part = part + line + line
-                    if ((counter-4800) % 20) == 0:
-                        outlines.append(part + part)
-                        part = ""
+                    part,outlines = convert(4800,20,outlines,line,part,counter)
                 elif counter <= 5800:
                     #box 12: 25 x 20 (coarse)
-                    part = part + line + line
-                    if ((counter-0) % 25) == 0:
-                        outlines.append(part + part)
-                        part = ""
+                    part,outlines = convert(5300,25,outlines,line,part,counter)
                 counter = counter + 1
+        #take care of the beginning of a block of values
         elif (len(line) == 2 and "(" in line):
             processing_values = True
             if not firstpart_with_values:
@@ -156,16 +158,32 @@ def construct_fine_version_of_other_files(inlines,outlines):
             else:
                 otherparts_with_values = True
             outlines.append(line)
+        #for other lines (e.g. text) simply copy to output
         else:
             outlines.append(line)
     return outlines
 
+#converts depending on the current box
+#params:
+#offset = number of values processed before current box (needs to be subtracted to calculate end of 'line')
+#box_width_coarse = width of the box in the coarse grid (length of 'line')
+#outlines = outlines from above
+#line = current line
+def convert(offset,box_width_coarse,outlines,line,part,counter):
+    #add the current value twice
+    part = part + line + line
+    #if the end of the 'line' is reached, then add it to the output twice
+    if ((counter-offset) % box_width_coarse) == 0:
+        outlines.append(part + part)
+        part = ""
+    return part, outlines
+
+#checks whether a given input is an integer value
+#params:
+#v = value that should be checked
 def is_int(v):
     try:
         int(v)
     except ValueError:
         return False
     return True
-
-#TODO: automize creation of new blockMesh file
-#def create_new_blockMesh():

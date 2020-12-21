@@ -8,140 +8,143 @@ import time
 
 import conversion_fine_coarse as conv
 import initialize as init
+import options as opt
 
 #what this program does by now:
 #(1) creates directories for coarse and the fine solvers
 #(2) adjusts the blockMesh file in the coarse solver's folder to be coarse
 #(2) runs coarse solver
 #(3) copies output of coarse solver as input for fine solvers (with adjustment due to finer grid)
-#     THIS CONVERSION IS NOT PRODUCING A CORRECT FILE FOR phi!!!
+#     THIS CONVERSION IS NOT PRODUCING A CORRECT FILE FOR phi!!! 
+#     THEREFORE A WORKAROUND COPYING EXISTING FILES IS AT THE MOMENT
 #(4) runs fine solvers one after the other
 
-#this program needs to be executed in a folder that also contains a folder openFoam 
-#containing the folders 0, system and constant (original ones from OLAT) needed for openFoam runs
+#this program needs to be executed in a folder that also contains 
+#- a folder openFoam 
+#              containing the folders 0, system and constant (original ones from OLAT) needed for openFoam runs
+#- a folder workaround
+#              containig files phi for the current workaround (as described above)
 
 #pending work:
 #- CORRECT INPUT FILE FOR phi CONSTRUCTED FROM OUTPUT OF THE COARSE SOLVER
-#- are files in 0 an appropriate input for the coarser grid?
-#- cleanup from earlier runs: by now the cleaning(delete everything except for this program and the folder 'openFoam') needs to be done manually
-#- read parameters from options file: by now they are set at the beginning of the main
 #- check for convergence: how to compare output of one timeslice with input of following timeslice?
-#- execute in parallel: how can the subprocesses for the fine solvers be executed in parallel?n
+#- execute in parallel: how can the subprocesses for the fine solvers be executed in parallel?
+#- by now all fine solvers are only run once -> with the implementation of convergence check if makes sense to run them multiple times
 
+#running open foam
+#params:
+#folder = folder containing the solver that should be run
 def run_openfoam(folder):
+    #execute blockMesh command for the given solver
     p1 = subprocess.Popen(['blockMesh','-case',folder], stdout=subprocess.PIPE)
     p1.wait()
 
+    #execute given solver and print output of time to console
     p2 = subprocess.Popen(['pisoFoam','-case',folder], stdout=subprocess.PIPE)
     for line in p2.stdout:
        if line[0:4] == "Time":
            print(folder + ":          " + line)
     p2.wait()
 
+    #returning of p2 might be senseful for parallelization...but not really needed now
     return p2
 
-def run_coarse_solver(name_folders, t_start, t_end, dt_coarse):
-
+#running the coarse solver
+def run_coarse_solver():
     #adjust documents in 'name_folders + "_coarse"' for the coarse solver
     print("setting time parameters for coarse solver")
-    folder = name_folders + "_coarse"
-    dt_coarse = 0.02
-    modify_param_controlDict(folder, "startTime", t_start)
-    modify_param_controlDict(folder, "endTime", t_end)
-    modify_param_controlDict(folder, "deltaT", dt_coarse)
-    print("startTime: " + str(t_start) + ", endTime: " + str(t_end) + ", deltaT: " + str(dt_coarse))
-    #produce folder for every 1250-th timestep
+    folder = opt.name_folders + "_coarse"
+    modify_param_controlDict(folder, "startTime", opt.t_start)
+    modify_param_controlDict(folder, "endTime", opt.t_end)
+    modify_param_controlDict(folder, "deltaT", 0.02)
+    #produce folder for every 1250-th timestep (so 25,50,75 and 100 with the current setting)
     #TODO: calculate this value
     modify_param_controlDict(folder, "writeInterval", 1250)
     #run coarse solver
     print("-----\n-----\nrunning the coarse solver\n-----\n-----")
-    p = run_openfoam(name_folders + "_coarse")
-    
-    for line in p.stdout:
-        if line[0:4] == "Time":
-            print(folder + ":          " + line)
+    p = run_openfoam(opt.name_folders + "_coarse")
 
-    p.wait()
-
-def set_timeparams_for_time_slice(time_slice,dt_fine,time_slice_start,time_slice_end,name_folders):
+#setting the time parameters for a time slice
+#params:
+#time_slice = time slice for which the parameters are set
+#time_slice_start = start time of this time slice
+#time_slice_end = end time of this time slice
+def set_timeparams_for_time_slice(time_slice,time_slice_start,time_slice_end):
     print("setting time parameters for time slice " + str(time_slice))
-    folder = name_folders + str(time_slice)
+    folder = opt.name_folders + str(time_slice)
     modify_param_controlDict(folder, "startTime", time_slice_start)
     modify_param_controlDict(folder, "endTime", time_slice_end)
-    modify_param_controlDict(folder, "deltaT", dt_fine)
-    print("startTime: " + str(time_slice_start) + ", endTime: " + str(time_slice_end) + ", deltaT: " + str(dt_fine))
+    modify_param_controlDict(folder, "deltaT", opt.dt_fine)
     #produce folder for every 250-th timestep
     #TODO: calculate this value
     modify_param_controlDict(folder, "writeInterval", 250)
 
+#modifying a value in the controlDict file
+#params:
+#folder = folder containing the solver for which the value should be modified
+#param = parameters thats value should be modified
+#value = new value of the parameter
 def modify_param_controlDict(folder, param, value):
+    #open controlDict file and read lines
     f = open(folder + "/system/controlDict", 'r')
     inlines = f.readlines()
+    #open controlDict file for writing
     f = open(folder + "/system/controlDict", 'w')
     outlines = []
+    #go through input line by line
     for line in inlines:
-        #print('read line:' + line)
+        #compare if the current line contains the parameter to modify
         if (line[0:len(param)] == param):
-            end = line.find(']')
-            if end == -1:
-                fill = '                '[len(param):16]
-                line = param + fill + str(value) + ';\n'
-            else:
-                line = line[0:(end+1)] + ' ' + str(value) + ';\n'
-            #print(line)
+            #modify current line to contain the new value
+            fill = '                '[len(param):16]
+            line = param + fill + str(value) + ';\n'
         outlines.append(line)
     f.writelines(outlines)
     f.close()
 
+#workaround needed for phi files as input for the fine solvers (look at top of this file for further information)
 def workaround():
     print("++++++++")
-    print("workaround")
+    print("WORKAROUND")
+    print("needed for correct phi files as input for the fine solvers")
     print("++++++++")
 
-    shutil.copy("blub/phi25", "openFoam_timeslice2/25/phi")
-    #os.rename("openFoam_timeslice2/25/phi25","openFoam_timeslice2/25/phi")
+    shutil.copy("workaround/phi25", "openFoam_timeslice2/25/phi")
+    shutil.copy("workaround/phi50", "openFoam_timeslice3/50/phi")
+    shutil.copy("workaround/phi75", "openFoam_timeslice4/75/phi")
 
-    shutil.copy("blub/U25", "openFoam_timeslice2/25/U")
-    #os.rename("openFoam_timeslice2/25/U25","openFoam_timeslice2/25/phi")
-
-    shutil.copy("blub/phi50", "openFoam_timeslice3/50/phi")
-    #os.rename("openFoam_timeslice2/50/phi50","openFoam_timeslice3/50/phi")
-
-    shutil.copy("blub/U50", "openFoam_timeslice3/50/U")
-    #os.rename("openFoam_timeslice2/50/U50","openFoam_timeslice3/50/phi")
-
-    shutil.copy("blub/phi75", "openFoam_timeslice4/75/phi")
-    #os.rename("openFoam_timeslice2/75/phi25","openFoam_timeslice4/25/phi")
-
-    shutil.copy("blub/U75", "openFoam_timeslice4/75/U")
-    #os.rename("openFoam_timeslice2/75/U75","openFoam_timeslice4/75/phi")
-
-def set_initial_start_values_for_time_slice(time_slice, name_folders, time_slice_start):
+#setting the start values for a time slice by construction from the output of the coarse solver
+#params:
+#time_slice = number of the current time slice
+#time_slice_start = start time of the current time slice (needed to address corresponding output of the coarse solver)
+def set_initial_start_values_for_time_slice(time_slice, time_slice_start):
+    #for time_slice 1 the input that is taken for the coarse solver can be taken
+    #maybe something needs to be changed here if start times > 0 are allowed
     if time_slice == 1:
         print("no need to adjust start values for time slice 1")
         return
 
     print("setting start values for time slice " + str(time_slice))
-    #delete folder 0
-    folder0 = name_folders + str(time_slice) + '/' + str(int(time_slice_start))
+    #delete folder for start time if it exists
+    folder0 = opt.name_folders + str(time_slice) + '/' + str(int(time_slice_start))
     if os.path.exists(folder0) and os.path.isdir(folder0):
         shutil.rmtree(folder0)
     #take output of coarse solver and copy to fine solver
-    fromDirectory = name_folders + '_coarse/' + str(int(time_slice_start)) 
-    toDirectory = name_folders + str(time_slice) + '/' + str(int(time_slice_start))
+    fromDirectory = opt.name_folders + '_coarse/' + str(int(time_slice_start)) 
+    toDirectory = opt.name_folders + str(time_slice) + '/' + str(int(time_slice_start))
     print("copy from\n" + fromDirectory + "\nto\n" + toDirectory)
     shutil.copytree(fromDirectory, toDirectory)
     #adjust files such that grid size matches
-    dir = name_folders + str(time_slice) + '/' + str(int(time_slice_start))
-
-    files = [f for f in listdir(dir) if isfile(join(dir, f))]
-
+    files = [f for f in listdir(toDirectory) if isfile(join(toDirectory, f))]
     for file in files:
-        print("open file " + name_folders + str(time_slice) + '/' + str(int(time_slice_start)) + '/' + file)
-        f = open(name_folders + str(time_slice) + '/' + str(int(time_slice_start)) + '/' + file, 'r')
+        print("open file " + opt.name_folders + str(time_slice) + '/' + str(int(time_slice_start)) + '/' + file)
+        #read lines of current file as input
+        f = open(opt.name_folders + str(time_slice) + '/' + str(int(time_slice_start)) + '/' + file, 'r')
         inlines = f.readlines()
-        f = open(name_folders + str(time_slice) + '/' + str(int(time_slice_start)) + '/' + file, 'w')
-        outlines = []                                       
+        #open file for writing output
+        f = open(opt.name_folders + str(time_slice) + '/' + str(int(time_slice_start)) + '/' + file, 'w')
+        outlines = []
+        #construct file depending on whether it is phi or any of the other files (since they share the same structure)                                       
         if file == "phi":
             outlines = conv.construct_fine_version_of_phi(inlines,outlines)
         else:
@@ -149,44 +152,41 @@ def set_initial_start_values_for_time_slice(time_slice, name_folders, time_slice
         f.writelines(outlines)
         f.close()
 
+#checks for convergence in the given time slice
+#obviously does nothing by now
 def check_convergence(num_time_slices):
     pass
 
+#
+#
+#main program
+#
+#
 if __name__ == "__main__":
-    #clean up trash from earlier runs
-    init.cleanup()
-
-    num_time_slices = 4
-    t_start = 0
-    t_end = 100
-    dt_fine = 0.02
-
-    name_folders = "openFoam_timeslice"
-
     #clean up from earlier runs
-    init.cleanup()
+    init.cleanup(opt.name_folders)
 
     #compute dt for coarse solver
-    dt_coarse = ((t_end - t_start) * 1.0)/num_time_slices
+    dt_coarse = ((opt.t_end - opt.t_start) * 1.0)/opt.num_time_slices
 
-    print("t_start: " + str(t_start)  + ", t_end: " + str(t_end) + ", dt_fine: " + str(dt_fine) + ",dt_coarse: " + str(dt_coarse))
+    print("t_start: " + str(opt.t_start)  + ", t_end: " + str(opt.t_end) + ", dt_fine: " + str(opt.dt_fine) + ",dt_coarse: " + str(dt_coarse))
 
     #create folders for time slices and for the coarse solver
-    init.create_folders(num_time_slices,name_folders)
+    init.create_folders(opt.num_time_slices,opt.name_folders)
 
     #replace blockMeshDict for coarse solver such that it works on a coarser grid
-    init.replace_blockMeshDict(name_folders)
+    init.replace_blockMeshDict(opt.name_folders)
 
     #run coarse solver
-    run_coarse_solver(name_folders, t_start, t_end, dt_coarse)
+    run_coarse_solver()
 
     #set start values for time slices depending on the output of the coarse solver
-    for time_slice in range(1,num_time_slices + 1):
-        time_slice_start = int(t_start + dt_coarse * (time_slice - 1))
+    for time_slice in range(1,opt.num_time_slices + 1):
+        time_slice_start = int(opt.t_start + dt_coarse * (time_slice - 1))
         time_slice_end = int(time_slice_start + dt_coarse)
-        set_timeparams_for_time_slice(time_slice,dt_fine,time_slice_start,time_slice_end,name_folders)
+        set_timeparams_for_time_slice(time_slice,time_slice_start,time_slice_end)
 
-        set_initial_start_values_for_time_slice(time_slice, name_folders, time_slice_start)
+        set_initial_start_values_for_time_slice(time_slice, time_slice_start)
 
     workaround()
 
@@ -195,10 +195,11 @@ if __name__ == "__main__":
     while(notconverged):
         #start parallel runs
         processes = []
-        for time_slice in range(1,num_time_slices + 1):
+        for time_slice in range(1,opt.num_time_slices + 1):
             #run openFoam for this time slice
             print("-----\n-----\nrunning the solver for time slice " + str(time_slice) + "\n-----\n-----")
-            p = run_openfoam(name_folders + str(time_slice))
+            p = run_openfoam(opt.name_folders + str(time_slice))
+            processes.append(p)
 
         print("all fine solvers have finished")
         
@@ -208,4 +209,4 @@ if __name__ == "__main__":
 
         #correct start values for time slices
         #for time_slice in range(1,num_time_slices):
-            #set_start_values_for_time_slice(time_slice)
+            #set_new_start_values_for_time_slice(time_slice)
