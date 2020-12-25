@@ -6,6 +6,7 @@ from os.path import isfile, join
 import shutil
 import time
 import select
+import sys
 
 import conversion_fine_coarse as conv
 import initialize as init
@@ -56,10 +57,10 @@ def run_coarse_solver():
     folder = opt.name_folders + "_coarse"
     modify_param_controlDict(folder, "startTime", opt.t_start)
     modify_param_controlDict(folder, "endTime", opt.t_end)
-    modify_param_controlDict(folder, "deltaT", 0.02)
-    #produce folder for every 1250-th timestep (so 25,50,75 and 100 with the current setting)
-    #TODO: calculate this value
-    modify_param_controlDict(folder, "writeInterval", 1250)
+    modify_param_controlDict(folder, "deltaT", opt.dt_coarse)
+    #produce folder for every 'write_interval'-th timestep
+    write_interval = ((opt.t_end - opt.t_start)/opt.dt_coarse) / opt.num_time_slices
+    modify_param_controlDict(folder, "writeInterval", write_interval)
     #run coarse solver
     print("-----\n-----\nrunning the coarse solver\n-----\n-----")
     p = run_openfoam(opt.name_folders + "_coarse")
@@ -81,9 +82,13 @@ def set_timeparams_for_time_slice(time_slice,time_slice_start,time_slice_end):
     modify_param_controlDict(folder, "startTime", time_slice_start)
     modify_param_controlDict(folder, "endTime", time_slice_end)
     modify_param_controlDict(folder, "deltaT", opt.dt_fine)
-    #produce folder for every 250-th timestep
-    #TODO: calculate this value
-    modify_param_controlDict(folder, "writeInterval", 250)
+    #produce folder for every 'write_interval'-th timestep
+    coarse_write_interval = ((opt.t_end - opt.t_start)/opt.dt_coarse) / opt.num_time_slices
+    num_intermediate_steps = opt.min_num_intermediate_times_per_timestep
+    while (coarse_write_interval % num_intermediate_steps) != 0:
+        num_intermediate_steps = num_intermediate_steps + 1
+    write_interval = coarse_write_interval / num_intermediate_steps
+    modify_param_controlDict(folder, "writeInterval", write_interval)
 
 #modifying a value in the controlDict file
 #params:
@@ -109,15 +114,21 @@ def modify_param_controlDict(folder, param, value):
     f.close()
 
 #workaround needed for phi files as input for the fine solvers (look at top of this file for further information)
-def workaround():
+def workaround(start_times):
     print("++++++++")
     print("WORKAROUND")
     print("needed for correct phi files as input for the fine solvers")
     print("++++++++")
 
-    shutil.copy("workaround/phi25", "openFoam_timeslice2/25/phi")
-    shutil.copy("workaround/phi50", "openFoam_timeslice3/50/phi")
-    shutil.copy("workaround/phi75", "openFoam_timeslice4/75/phi")
+    for i in range(0,len(start_times)):
+        if not conv.is_int(start_times[i]):
+            print("++++++++")
+            print("ERROR")
+            print("number of time slices not working with current workaround")
+            print("++++++++")  
+            sys.exit()
+        if not start_times[i] == 0:
+            shutil.copy("workaround/phi" + str(start_times[i]), "openFoam_timeslice" + str(i+1) + "/" + str(start_times[i]) + "/phi")
 
 #setting the start values for a time slice by construction from the output of the coarse solver
 #params:
@@ -132,7 +143,11 @@ def set_initial_start_values_for_time_slice(time_slice, time_slice_start):
 
     print("setting start values for time slice " + str(time_slice))
     #delete folder for start time if it exists
-    folder0 = opt.name_folders + str(time_slice) + '/' + str(int(time_slice_start))
+    folder_start = opt.name_folders + str(time_slice) + '/' + str(int(time_slice_start))
+    if os.path.exists(folder_start) and os.path.isdir(folder_start):
+        shutil.rmtree(folder_start)
+    #delete 0 folder if it exists
+    folder0 = opt.name_folders + str(time_slice) + '/0'
     if os.path.exists(folder0) and os.path.isdir(folder0):
         shutil.rmtree(folder0)
     #take output of coarse solver and copy to fine solver
@@ -186,14 +201,18 @@ if __name__ == "__main__":
     #run coarse solver
     run_coarse_solver()
 
+    #start_times needed for workaround
+    start_times = []
+
     #set start values for time slices depending on the output of the coarse solver
     for time_slice in range(1,opt.num_time_slices + 1):
         time_slice_start = int(opt.t_start + dt_coarse * (time_slice - 1))
+        start_times.append(time_slice_start)
         time_slice_end = int(time_slice_start + dt_coarse)
         set_timeparams_for_time_slice(time_slice,time_slice_start,time_slice_end)
         set_initial_start_values_for_time_slice(time_slice, time_slice_start)
 
-    workaround()
+    workaround(start_times)
 
     #run fine solvers in parallel until convergence
     notconverged = True

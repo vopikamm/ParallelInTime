@@ -1,9 +1,18 @@
-#these values shoulden't be changed at the moment, since the workaround (look top of parareal_openFoam.py)
-#only works with these values
-num_time_slices = 4
+#number of time slices
+#due to the workaround this value is only flexible in the sense that 
+#the start times for all time slices need to be integer values
+num_time_slices = 5
+#minimal number of intermediate times per timestep
+#this value is only a minimal value
+#the real number of intermediate times might be higher to have working transitions between time slices
+min_num_intermediate_times_per_timestep = 5
+#start time
 t_start = 0
+#end time
 t_end = 100
+#coarse delta t
+dt_coarse = 0.02
+#fine delta t
 dt_fine = 0.02
-
-#this value can be changed
+#beginning of the name of folders created for the coarse solver and the time slices
 name_folders = "openFoam_timeslice"
