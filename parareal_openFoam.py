@@ -5,6 +5,7 @@ from os.path import isfile, join
 
 import shutil
 import time
+import select
 
 import conversion_fine_coarse as conv
 import initialize as init
@@ -17,7 +18,7 @@ import options as opt
 #(3) copies output of coarse solver as input for fine solvers (with adjustment due to finer grid)
 #     THIS CONVERSION IS NOT PRODUCING A CORRECT FILE FOR phi!!! 
 #     THEREFORE A WORKAROUND COPYING EXISTING FILES IS AT THE MOMENT
-#(4) runs fine solvers one after the other
+#(4) runs fine solvers in parallel
 
 #this program needs to be executed in a folder that also contains 
 #- a folder openFoam 
@@ -28,7 +29,6 @@ import options as opt
 #pending work:
 #- CORRECT INPUT FILE FOR phi CONSTRUCTED FROM OUTPUT OF THE COARSE SOLVER
 #- check for convergence: how to compare output of one timeslice with input of following timeslice?
-#- execute in parallel: how can the subprocesses for the fine solvers be executed in parallel?
 #- by now all fine solvers are only run once -> with the implementation of convergence check if makes sense to run them multiple times
 
 #running open foam
@@ -41,10 +41,10 @@ def run_openfoam(folder):
 
     #execute given solver and print output of time to console
     p2 = subprocess.Popen(['pisoFoam','-case',folder], stdout=subprocess.PIPE)
-    for line in p2.stdout:
-       if line[0:4] == "Time":
-           print(folder + ":          " + line)
-    p2.wait()
+    #for line in p2.stdout:
+    #   if line[0:4] == "Time":
+    #       print(folder + ":          " + line)
+    #p2.wait()
 
     #returning of p2 might be senseful for parallelization...but not really needed now
     return p2
@@ -63,6 +63,12 @@ def run_coarse_solver():
     #run coarse solver
     print("-----\n-----\nrunning the coarse solver\n-----\n-----")
     p = run_openfoam(opt.name_folders + "_coarse")
+
+    for line in p.stdout:
+       if line[0:4] == "Time":
+           print("computation completed for " + line)
+
+    p.wait()
 
 #setting the time parameters for a time slice
 #params:
@@ -185,12 +191,11 @@ if __name__ == "__main__":
         time_slice_start = int(opt.t_start + dt_coarse * (time_slice - 1))
         time_slice_end = int(time_slice_start + dt_coarse)
         set_timeparams_for_time_slice(time_slice,time_slice_start,time_slice_end)
-
         set_initial_start_values_for_time_slice(time_slice, time_slice_start)
 
     workaround()
 
-    #run fine solvers in parallel until convergence --> of course not in parallel by now
+    #run fine solvers in parallel until convergence
     notconverged = True
     while(notconverged):
         #start parallel runs
@@ -200,6 +205,19 @@ if __name__ == "__main__":
             print("-----\n-----\nrunning the solver for time slice " + str(time_slice) + "\n-----\n-----")
             p = run_openfoam(opt.name_folders + str(time_slice))
             processes.append(p)
+
+        #print output of processes running openFoam for the different time slices
+        streams = [p.stdout for p in processes]
+        while True:
+            rstreams, _, _ = select.select(streams, [], [])
+            for stream in rstreams:
+                line = stream.readline()
+                if line[0:4] == "Time":
+                    print("computation completed for " + line)
+            if all(p.poll() is not None for p in processes):
+                break
+        for stream in streams:
+            print(stream.read())
 
         print("all fine solvers have finished")
         
