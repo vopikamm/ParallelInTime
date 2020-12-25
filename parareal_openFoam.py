@@ -131,6 +131,11 @@ def workaround(start_times):
             shutil.copy("workaround/phi" + str(start_times[i]), "openFoam_timeslice" + str(i+1) + "/" + str(start_times[i]) + "/phi")
 
 #setting the start values for a time slice by construction from the output of the coarse solver
+#formal:
+#U_j+1^0 = G(t_j , t_j+1 , U_j^0)
+#j time steps of coarse integrator
+#j: beginning of current time slice, j+1: end of current time slice
+#0 --> iteration 0
 #params:
 #time_slice = number of the current time slice
 #time_slice_start = start time of the current time slice (needed to address corresponding output of the coarse solver)
@@ -173,10 +178,57 @@ def set_initial_start_values_for_time_slice(time_slice, time_slice_start):
         f.writelines(outlines)
         f.close()
 
+#running all fine solvers in parallel
+#start values already set before
+def run_fine_solvers():
+    #start parallel runs
+    processes = []
+    for time_slice in range(1,opt.num_time_slices + 1):
+        #run openFoam for this time slice
+        print("-----\n-----\nrunning the solver for time slice " + str(time_slice) + "\n-----\n-----")
+        p = run_openfoam(opt.name_folders + str(time_slice))
+        processes.append(p)
+
+    #print output of processes running openFoam for the different time slices
+    streams = [p.stdout for p in processes]
+    while True:
+        rstreams, _, _ = select.select(streams, [], [])
+        for stream in rstreams:
+            line = stream.readline()
+            if line[0:4] == "Time":
+                print("computation completed for " + line)
+        if all(p.poll() is not None for p in processes):
+            break
+    for stream in streams:
+        print(stream.read())
+
+    print("all fine solvers have finished")
+
+#adjust the starting values for all time slices
+#therefore we compute the end point of the previous time slice as described in the literature
+#formal:
+#U_j+1^k+1 = G(t_j , t_j+1 , U_j^k+1) + F(t_j , t_j+1 , U_j^k) - G(t_j , t_j+1 , U_j^k)
+#j time steps of coarse integrator
+#j: beginning of previous time slice, j+1: end of previous time slice / start of current time slice
+#k iterationcounter
+#k: last iteration, k+1: current iteration
+#G(t_j , t_j+1 , U_j^k+1): result of the coarse solver for start time of current time slice and current iteration
+# -> NOT COMPUTED BY NOW
+#     -> take output of the fine solver for pre-prev time slice (so from previous iteration)
+#     -> transfer this onto the coarse grid
+#     -> adjust settings in controlDict of coarse solver and let in run on previous time slice
+#F(t_j , t_j+1 , U_j^k): end result of the fine solver for previous time slice and last iteration
+# -> 'output' of fine solver for previous time slice
+#G(t_j , t_j+1 , U_j^k): result of the coarse solver for start time of current time slice and previous iteration
+# -> current input values
+def adjust_starting_values():
+    for time_slice in range(1,opt.num_time_slices + 1):
+        pass
+
 #checks for convergence in the given time slice
 #obviously does nothing by now
-def check_convergence(num_time_slices):
-    pass
+def check_convergence():
+    return True
 
 #
 #
@@ -217,33 +269,11 @@ if __name__ == "__main__":
     #run fine solvers in parallel until convergence
     notconverged = True
     while(notconverged):
-        #start parallel runs
-        processes = []
-        for time_slice in range(1,opt.num_time_slices + 1):
-            #run openFoam for this time slice
-            print("-----\n-----\nrunning the solver for time slice " + str(time_slice) + "\n-----\n-----")
-            p = run_openfoam(opt.name_folders + str(time_slice))
-            processes.append(p)
-
-        #print output of processes running openFoam for the different time slices
-        streams = [p.stdout for p in processes]
-        while True:
-            rstreams, _, _ = select.select(streams, [], [])
-            for stream in rstreams:
-                line = stream.readline()
-                if line[0:4] == "Time":
-                    print("computation completed for " + line)
-            if all(p.poll() is not None for p in processes):
-                break
-        for stream in streams:
-            print(stream.read())
-
-        print("all fine solvers have finished")
+        #run all fine solvers in parallel
+        run_fine_solvers()
+        
+        #adjust the start values according to parareal method
+        adjust_starting_values()
         
         #check convergence
-        notconverged = False
-        #check_convergence(num_time_slices)
-
-        #correct start values for time slices
-        #for time_slice in range(1,num_time_slices):
-            #set_new_start_values_for_time_slice(time_slice)
+        notconverged = not check_convergence()
