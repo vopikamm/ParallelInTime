@@ -165,11 +165,16 @@ def construct_fine_version_of_other_files(inlines,outlines):
             outlines.append(line)
     return outlines
 
-#OBVIOUSLY NOT WORKING
+#JUST A WORKAROUND AS FOR THE CONVERSION FROM COARSE TO FINE (see parareal_openFoam.py)
 #this method should construct the coarser phi files from the fine ones
 #...but I don't understand by now how this conversion should work
-def construct_coarse_version_of_phi(inlines,outlines):
-    pass
+def construct_coarse_version_of_phi(inlines,outlines,time_slice_end):
+    print("++++++++")
+    print("WORKAROUND")
+    print("needed for correct phi files as input for the fine solvers")
+    print("++++++++")
+
+    shutil.copy("workaround/phi" + str(time_slice_end) + "_c", opt.name_folders + '_coarse/' + str(int(time_slice_end)) + "/phi")
 
 #constructs the coarse versions of all files except for phi from the output of the fine solvers
 #params
@@ -201,6 +206,10 @@ def construct_coarse_version_of_other_files(inlines,outlines):
     part = []
     #counter is needed to keep track of the current box (only in the first part with values) 
     counter = 1
+    #true in first line and false in second line of two lines that should be merged
+    first_line = True
+    # collects four values that need to be merged into one
+    values_to_merge = []
     #process line after line from the input file
     for line in inlines:
         #take care of lines that only contain one integer number - this is the number of following values
@@ -228,40 +237,40 @@ def construct_coarse_version_of_other_files(inlines,outlines):
                 if counter <= 400:
                     #box 1: 20 x 20 (fine)
                     #offset,box_width_fine,outlines,line,part,counter,values_to_merge,first_line
-                    part,outlines = convert_fine_to_coarse(0,20,outlines,line,part,counter)
+                    part,outlines = convert_fine_to_coarse(0,20,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 1200:
                     #box 2: 40 x 20 (fine)
-                    part,outlines = convert_fine_to_coarse(400,40,outlines,line,part,counter)
+                    part,outlines = convert_fine_to_coarse(400,40,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 4200:
                     #box 3: 150 x 20 (fine)
-                    part,outlines = convert_fine_to_coarse(1200,150,outlines,line,part,counter)
+                    part,outlines = convert_fine_to_coarse(1200,150,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 5000:
                     #box 4: 20 x 40 (fine)
-                    part,outlines = convert_fine_to_coarse(4200,20,outlines,line,part,counter)
+                    part,outlines = convert_fine_to_coarse(4200,20,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 11000:
                     #box 5: 150 x 40 (fine)
-                    part,outlines = convert_fine_to_coarse(5000,150,outlines,line,part,counter)
+                    part,outlines = convert_fine_to_coarse(5000,150,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 11400:
                     #box 6: 20 x 20 (fine)
-                    part,outlines = convert_fine_to_coarse(11000,20,outlines,line,part,counter)
+                    part,outlines = convert_fine_to_coarse(11000,20,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 12200:
                     #box 7: 40 x 20 (fine)
-                    part,outlines = convert_fine_to_coarse(11400,40,outlines,line,part,counter)
+                    part,outlines = convert_fine_to_coarse(11400,40,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 15200:
                     #box 8: 150 x 20 (fine)
-                    part,outlines = convert_fine_to_coarse(12200,150,outlines,line,part,counter)
+                    part,outlines = convert_fine_to_coarse(12200,150,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 17200:
                     #box 9: 40 x 50 (fine)
-                    part,outlines = convert_fine_to_coarse(15200,40,outlines,line,part,counter)
+                    part,outlines = convert_fine_to_coarse(15200,40,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 19200:
                     #box 10: 50 x 40 (fine)
-                    part,outlines = convert_fine_to_coarse(17200,50,outlines,line,part,counter)
+                    part,outlines = convert_fine_to_coarse(17200,50,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 21200:
                     #box 11: 40 x 50 (coarse)
-                    part,outlines = convert_fine_to_coarse(19200,40,outlines,line,part,counter)
+                    part,outlines = convert_fine_to_coarse(19200,40,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 23200:
                     #box 12: 50 x 40 (fine)
-                    part,outlines = convert_fine_to_coarse(21200,50,outlines,line,part,counter)
+                    part,outlines = convert_fine_to_coarse(21200,50,outlines,line,part,counter,values_to_merge,first_line)
                 counter = counter + 1
         #take care of the beginning of a block of values
         elif (len(line) == 2 and "(" in line):

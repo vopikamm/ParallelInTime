@@ -204,6 +204,54 @@ def run_fine_solvers():
 
     print("all fine solvers have finished")
 
+def set_start_values_for_coarse_solver_for_one_time_slice(prev_time_slice, prev_time_slice_end):
+    #delete current folders
+    #list all files in the directory
+    list_of_dir = os.listdir('.')
+    print(list_of_dir)
+    for item in list_of_dir:
+        #delete folders having an integer as name
+        if os.path.exists(item) and os.path.isdir(item) and conv.is_int(item):
+            shutil.rmtree(item)
+    #take output of fine solver and copy to coarse solver
+    fromDirectory = opt.name_folders + str(prev_time_slice) + '/' + str(int(prev_time_slice_end))
+    toDirectory = opt.name_folders + '_coarse/' + str(int(prev_time_slice_end)) 
+    print("copy from\n" + fromDirectory + "\nto\n" + toDirectory)
+    shutil.copytree(fromDirectory, toDirectory)
+    #adjust files such that grid size matches
+    files = [f for f in listdir(toDirectory) if isfile(join(toDirectory, f))]
+    for file in files:
+        print("open file " + toDirectory)
+        #read lines of current file as input
+        f = open(toDirectory + '/' + file, 'r')
+        inlines = f.readlines()
+        #open file for writing output
+        f = open(toDirectory + '/' + file, 'w')
+        outlines = []
+        #construct file depending on whether it is phi or any of the other files (since they share the same structure)                                       
+        if file == "phi":
+            outlines = conv.construct_coarse_version_of_phi(inlines,outlines,time_slice_end)
+        else:
+            outlines = conv.construct_coarse_version_of_other_files(inlines,outlines)
+        f.writelines(outlines)
+        f.close()
+
+def run_coarse_solver_for_single_time_slice(time_slice, time_slice_start, time_slice_end)
+    #adjust documents in 'name_folders + "_coarse"' for the coarse solver
+    print("setting time parameters for coarse solver")
+    folder = opt.name_folders + "_coarse"
+    modify_param_controlDict(folder, "startTime", time_slice_start)
+    modify_param_controlDict(folder, "endTime", time_slice_end)
+    #run coarse solver
+    print("-----\n-----\nrunning the coarse solver\n-----\n-----")
+    p = run_openfoam(opt.name_folders + "_coarse")
+
+    for line in p.stdout:
+       if line[0:4] == "Time":
+           print("computation completed for " + line)
+
+    p.wait()
+
 #adjust the starting values for all time slices
 #therefore we compute the end point of the previous time slice as described in the literature
 #formal:
@@ -213,17 +261,24 @@ def run_fine_solvers():
 #k iterationcounter
 #k: last iteration, k+1: current iteration
 #G(t_j , t_j+1 , U_j^k+1): result of the coarse solver for start time of current time slice and current iteration
-# -> NOT COMPUTED BY NOW
-#     -> take output of the fine solver for pre-prev time slice (so from previous iteration)
-#     -> transfer this onto the coarse grid
-#     -> adjust settings in controlDict of coarse solver and let in run on previous time slice
+# -> output of coarse solver for recomputation of single time slice (compute and then get result from folder for coarse solver)
 #F(t_j , t_j+1 , U_j^k): end result of the fine solver for previous time slice and last iteration
-# -> 'output' of fine solver for previous time slice
+# -> 'output' of fine solver for previous time slice (get from folder for time slice)
 #G(t_j , t_j+1 , U_j^k): result of the coarse solver for start time of current time slice and previous iteration
-# -> current input values
-def adjust_starting_values():
-    for time_slice in range(1,opt.num_time_slices + 1):
-        pass
+# -> current input values (get from folder for time slice)
+def adjust_starting_values(time_slice_ends):
+    for time_slice in range(2,opt.num_time_slices + 1):
+        #for time slice 2: 
+        #   |-----|-----|-----|-...
+        #j  0     1     2     3
+        #U_2^k+1 = G(t_1 , t_2 , U_1^k+1) + F(t_1 , t_2 , U_1^k) - G(t_1 , t_2 , U_1^k)
+        #recompute coarse solver on this time slice
+        set_start_values_for_coarse_solver_for_one_time_slice((time_slice - 1), time_slice_ends[time_slice - 2])
+        run_coarse_solver_for_single_time_slice(time_slice, time_slice_ends[time_slice - 2], time_slice_ends[time_slice - 1])
+        #get just computed output
+        ...
+        #get output of fine solver for previous time slice
+        #get input values for current time slice
 
 #checks for convergence in the given time slice
 #obviously does nothing by now
