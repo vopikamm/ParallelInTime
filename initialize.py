@@ -7,7 +7,6 @@ import shutil
 def cleanup(name_folders):
     #list all files in the directory
     list_of_dir = os.listdir('.')
-    print(list_of_dir)
     for item in list_of_dir:
         #delete folders that start with name_folders
         if os.path.exists(item) and os.path.isdir(item) and item.startswith(name_folders):

@@ -1,4 +1,6 @@
 import numpy
+import shutil
+import options as opt
 
 #NOT WORKING
 #this method should construct the finer phi files from the coarse ones
@@ -176,6 +178,8 @@ def construct_coarse_version_of_phi(inlines,outlines,time_slice_end):
 
     shutil.copy("workaround/phi" + str(time_slice_end) + "_c", opt.name_folders + '_coarse/' + str(int(time_slice_end)) + "/phi")
 
+    return outlines
+
 #constructs the coarse versions of all files except for phi from the output of the fine solvers
 #params
 #inlines = lines from the fine input file
@@ -216,9 +220,9 @@ def construct_coarse_version_of_other_files(inlines,outlines):
         #divide depending on the following part of values (first part: 4; other parts: 2)
         if is_int(line):
             if not firstpart_with_values:
-                line = str(int(line) / 4) + "\n"
+                line = str(int(int(line) / 4)) + "\n"
             else:
-                line = str(int(line) / 2) + "\n"
+                line = str(int(int(line) / 2)) + "\n"
             outlines.append(line)
         #take care of the ending of a block of values
         elif (len(line) == 2 and ")" in line):
@@ -228,7 +232,13 @@ def construct_coarse_version_of_other_files(inlines,outlines):
         elif processing_values:
             #in the other parts every value needs added twice to the output
             if otherparts_with_values:
-                outlines.append(line + line)
+                values_to_merge.append(line)
+                if counter % 2 == 0:
+                    outlines.append(merge_two_values(values_to_merge))
+                    values_to_merge = []
+                if first_line:
+                    first_line = not first_line
+                counter = counter + 1
             #construct output from input depending on the current box
             #every entry 
             #- has to be doubled in its 'line' (*width_of_the_block* successive boxes from one block) 
@@ -237,44 +247,46 @@ def construct_coarse_version_of_other_files(inlines,outlines):
                 if counter <= 400:
                     #box 1: 20 x 20 (fine)
                     #offset,box_width_fine,outlines,line,part,counter,values_to_merge,first_line
-                    part,outlines = convert_fine_to_coarse(0,20,outlines,line,part,counter,values_to_merge,first_line)
+                    part,outlines,values_to_merge,first_line = convert_fine_to_coarse(0,20,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 1200:
                     #box 2: 40 x 20 (fine)
-                    part,outlines = convert_fine_to_coarse(400,40,outlines,line,part,counter,values_to_merge,first_line)
+                    part,outlines,values_to_merge,first_line = convert_fine_to_coarse(400,40,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 4200:
                     #box 3: 150 x 20 (fine)
-                    part,outlines = convert_fine_to_coarse(1200,150,outlines,line,part,counter,values_to_merge,first_line)
+                    part,outlines,values_to_merge,first_line = convert_fine_to_coarse(1200,150,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 5000:
                     #box 4: 20 x 40 (fine)
-                    part,outlines = convert_fine_to_coarse(4200,20,outlines,line,part,counter,values_to_merge,first_line)
+                    part,outlines,values_to_merge,first_line = convert_fine_to_coarse(4200,20,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 11000:
                     #box 5: 150 x 40 (fine)
-                    part,outlines = convert_fine_to_coarse(5000,150,outlines,line,part,counter,values_to_merge,first_line)
+                    part,outlines,values_to_merge,first_line = convert_fine_to_coarse(5000,150,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 11400:
                     #box 6: 20 x 20 (fine)
-                    part,outlines = convert_fine_to_coarse(11000,20,outlines,line,part,counter,values_to_merge,first_line)
+                    part,outlines,values_to_merge,first_line = convert_fine_to_coarse(11000,20,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 12200:
                     #box 7: 40 x 20 (fine)
-                    part,outlines = convert_fine_to_coarse(11400,40,outlines,line,part,counter,values_to_merge,first_line)
+                    part,outlines,values_to_merge,first_line = convert_fine_to_coarse(11400,40,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 15200:
                     #box 8: 150 x 20 (fine)
-                    part,outlines = convert_fine_to_coarse(12200,150,outlines,line,part,counter,values_to_merge,first_line)
+                    part,outlines,values_to_merge,first_line = convert_fine_to_coarse(12200,150,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 17200:
                     #box 9: 40 x 50 (fine)
-                    part,outlines = convert_fine_to_coarse(15200,40,outlines,line,part,counter,values_to_merge,first_line)
+                    part,outlines,values_to_merge,first_line = convert_fine_to_coarse(15200,40,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 19200:
                     #box 10: 50 x 40 (fine)
-                    part,outlines = convert_fine_to_coarse(17200,50,outlines,line,part,counter,values_to_merge,first_line)
+                    part,outlines,values_to_merge,first_line = convert_fine_to_coarse(17200,50,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 21200:
                     #box 11: 40 x 50 (coarse)
-                    part,outlines = convert_fine_to_coarse(19200,40,outlines,line,part,counter,values_to_merge,first_line)
+                    part,outlines,values_to_merge,first_line = convert_fine_to_coarse(19200,40,outlines,line,part,counter,values_to_merge,first_line)
                 elif counter <= 23200:
                     #box 12: 50 x 40 (fine)
-                    part,outlines = convert_fine_to_coarse(21200,50,outlines,line,part,counter,values_to_merge,first_line)
+                    part,outlines,values_to_merge,first_line = convert_fine_to_coarse(21200,50,outlines,line,part,counter,values_to_merge,first_line)
                 counter = counter + 1
         #take care of the beginning of a block of values
         elif (len(line) == 2 and "(" in line):
             processing_values = True
+            first_line = True
+            counter = 1
             if not firstpart_with_values:
                 firstpart_with_values = True
             else:
@@ -307,21 +319,84 @@ def convert_coarse_to_fine(offset,box_width_coarse,outlines,line,part,counter):
 #outlines = outlines from above
 #line = current line
 def convert_fine_to_coarse(offset,box_width_fine,outlines,line,part,counter,values_to_merge,first_line):
+    if first_line:
+        part.append(line)
+    else:
+        values_to_merge.append(line)
+        values_to_merge.append(part.pop())
+        if counter % 2 == 0:
+            outlines.append(merge_four_values(values_to_merge))
+            values_to_merge = []
     if ((counter-offset) % box_width_fine) == 0:
         first_line = not first_line
         if first_line:
             part = []
-    if first_line:
-        part.append(float(line))
-    else
-        values_to_merge.append(float(line))
-        values_to_merge.append(part.pop())
-        if counter % 2 == 0:
-            values_to_merge.append(float(line))
-            values_to_merge.append(part.pop())
-            outlines.append(str(numpy.mean(values_to_merge)) + "\n")
-            values_to_merge = []
-    return part, outlines
+    return part, outlines, values_to_merge, first_line
+
+def merge_four_values(values_to_merge):
+    #in file U we have values that look like
+    #(value1 value2 value3)
+    #these need to be merged differently since every of the three values needs to be merged seperately
+    value1 = 0
+    value2 = 0
+    value3 = 0
+    value4 = 0
+    merge = 0
+    result = ""
+    if "(" in values_to_merge[0]:
+        value1  = float(((values_to_merge[0].split(" "))[0])[1:])
+        value2  = float(((values_to_merge[1].split(" "))[0])[1:])
+        value3  = float(((values_to_merge[2].split(" "))[0])[1:])
+        value4  = float(((values_to_merge[3].split(" "))[0])[1:])
+        merge = (value1 + value2 + value3 + value4)/4.0
+        result = "(" + str(merge)
+
+        value1  = float((values_to_merge[0].split(" "))[1])
+        value2  = float((values_to_merge[1].split(" "))[1])
+        value3  = float((values_to_merge[2].split(" "))[1])
+        value4  = float((values_to_merge[3].split(" "))[1])
+        merge = (value1 + value2 + value3 + value4)/4.0
+        result = result + " " + str(merge)
+
+        value1  = float(((values_to_merge[0].split(" "))[2])[:-2])
+        value2  = float(((values_to_merge[1].split(" "))[2])[:-2])
+        value3  = float(((values_to_merge[2].split(" "))[2])[:-2])
+        value4  = float(((values_to_merge[3].split(" "))[2])[:-2])
+        merge = (value1 + value2 + value3 + value4)/4.0
+        return result + " " + str(merge) + ")\n"
+    else:
+        value1  = float(values_to_merge[0])
+        value2  = float(values_to_merge[1])
+        value3  = float(values_to_merge[2])
+        value4  = float(values_to_merge[3])
+        merge = (value1 + value2 + value3 + value4)/4.0
+        return str(merge) + "\n"
+
+def merge_two_values(values_to_merge):
+    value1 = 0
+    value2 = 0
+    merge = 0
+    result = ""
+    if "(" in values_to_merge[0]:
+        value1  = float(((values_to_merge[0].split(" "))[0])[1:])
+        value2  = float(((values_to_merge[1].split(" "))[0])[1:])
+        merge = (value1 + value2)/2.0
+        result = "(" + str(merge)
+
+        value1  = float((values_to_merge[0].split(" "))[1])
+        value2  = float((values_to_merge[1].split(" "))[1])
+        merge = (value1 + value2)/2.0
+        result = result + " " + str(merge)
+
+        value1  = float(((values_to_merge[0].split(" "))[2])[:-2])
+        value2  = float(((values_to_merge[1].split(" "))[2])[:-2])
+        merge = (value1 + value2)/2.0
+        return result + " " + str(merge) + ")\n"
+    else:
+        value1  = float(values_to_merge[0])
+        value2  = float(values_to_merge[1])
+        merge = (value1 + value2)/2.0
+        return str(merge) + "\n"
 
 #checks whether a given input is an integer value
 #params:
