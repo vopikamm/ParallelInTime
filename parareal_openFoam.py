@@ -22,6 +22,9 @@ import merge_results as merge
 #     THIS CONVERSION IS NOT PRODUCING A CORRECT FILE FOR phi!!! 
 #     THEREFORE A WORKAROUND COPYING EXISTING FILES IS AT THE MOMENT
 #(4) runs fine solvers in parallel
+#(5) recomputes coarse solver on single time slices with output of the fine solvers as input
+#(6) calculate new starting values for time slices
+#(7) if the adjustment in step (6) is too large: go back to step (4)
 
 #this program needs to be executed in a folder that also contains 
 #- a folder openFoam 
@@ -31,8 +34,6 @@ import merge_results as merge
 
 #pending work:
 #- CORRECT INPUT FILE FOR phi CONSTRUCTED FROM OUTPUT OF THE COARSE SOLVER
-#- check for convergence: how to compare output of one timeslice with input of following timeslice?
-#- by now all fine solvers are only run once -> with the implementation of convergence check if makes sense to run them multiple times
 
 #running open foam
 #params:
@@ -147,21 +148,21 @@ def modify_param_controlDict(folder, param, value):
     f.close()
 
 #workaround needed for phi files as input for the fine solvers (look at top of this file for further information)
-def workaround(start_times):
+def workaround(end_times):
     print("++++++++")
     print("WORKAROUND")
     print("needed for correct phi files as input for the fine solvers")
     print("++++++++")
 
-    for i in range(0,len(start_times)):
-        if not conv.is_int(start_times[i]):
+    for i in range(0,len(end_times)):
+        if not conv.is_int(end_times[i]):
             print("++++++++")
             print("ERROR")
             print("number of time slices not working with current workaround")
             print("++++++++")  
             sys.exit()
-        if not start_times[i] == 0:
-            shutil.copy("workaround/phi" + str(start_times[i]), "openFoam_timeslice" + str(i+1) + "/" + str(start_times[i]) + "/phi")
+        if not end_times[i] == opt.t_end:
+            shutil.copy("workaround/phi" + str(end_times[i]), "openFoam_timeslice" + str(i+2) + "/" + str(end_times[i]) + "/phi")
 
 #setting the start values for a time slice by construction from the output of the coarse solver
 #formal:
@@ -224,6 +225,8 @@ def set_initial_start_values_for_time_slice(time_slice, time_slice_start):
 
 #running all fine solvers in parallel
 #start values already set before
+#params:
+#counter = iteration counter needed since from iteration to iteration there is always one time slice less to compute (reason is described in main)
 def run_fine_solvers(counter):
     #start parallel runs
     processes = []
@@ -430,25 +433,21 @@ if __name__ == "__main__":
     #replace blockMeshDict for coarse solver such that it works on a coarser grid
     init.replace_blockMeshDict(opt.name_folders)
 
-    #run coarse solver
+    #run coarse solver from t_start until t_end to have starting values for the fine solvers
     run_coarse_solver()
 
-    #start_times needed for workaround
-    start_times = []
-
     #end times of time slices needed for iterating
-    time_slice_ends = []
+    end_times = []
 
     #set start values for time slices depending on the output of the coarse solver
     for time_slice in range(1,opt.num_time_slices + 1):
         time_slice_start = int(opt.t_start + dt_coarse * (time_slice - 1))
-        start_times.append(time_slice_start)
         time_slice_end = int(time_slice_start + dt_coarse)
-        time_slice_ends.append(time_slice_end)
+        end_times.append(time_slice_end)
         set_timeparams_for_time_slice(time_slice,time_slice_start,time_slice_end)
         set_initial_start_values_for_time_slice(time_slice, time_slice_start)
 
-    workaround(start_times)
+    workaround(end_times)
 
     #run fine solvers in parallel until convergence
     notconverged = True
@@ -464,14 +463,24 @@ if __name__ == "__main__":
         print("ITERATION " + str(counter))
         print("++++++++")
 
+        #from iteration to iteration there is always one time slice that needs no recomputition, so after opt.num_time_slices iterations nothing is changing anymore
+        #reason:
+        #the starting values for time slice 1 are only set in the beginning
+        #the starting values for time slice 2 are set in the beginning and then are adjusted according to the output of time slice 1
+        #since the output of time slice 1 is not changing due to the similar input, obviously there are no changes in time slice 2 after it was computed two times
+        #and so on...
         if counter == opt.num_time_slices:
             exit("exiting without reaching the given tolerance of " + str(opt.tolerance) + "\nadjustment is " + str(adjustment) + " in iteration " + str(counter))
+        
         #run all fine solvers in parallel
         run_fine_solvers(counter)
         
-        #adjust the start values according to parareal method
-        adjustment = adjust_starting_values(time_slice_ends,adjustment,counter)
+        #adjust the start values according to parareal method returning the adjustment made in this iteration
+        #as euclidean distance between values computed in this iteration and starting values
+        adjustment = adjust_starting_values(end_times,adjustment,counter)
         
         #check convergence
         notconverged = not check_convergence(adjustment)
+
+        #increase counter since end of iteration is reached
         counter = counter + 1
