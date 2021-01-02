@@ -13,6 +13,7 @@ import conversion_fine_coarse as conv
 import initialize as init
 import options as opt
 import merge_results as merge
+import iterate as iterate
 
 #what this program does by now:
 #(1) creates directories for coarse and the fine solvers
@@ -61,7 +62,7 @@ def run_coarse_solver():
     write_interval = ((opt.t_end - opt.t_start)/opt.dt_coarse) / opt.num_time_slices
     modify_param_controlDict(folder, "writeInterval", write_interval)
     #run coarse solver
-    print("-----\n-----\nrunning the coarse solver\n-----\n-----")
+    print("----\nrunning the coarse solver\n----")
     p = run_openfoam(opt.name_folders + "_coarse")
 
     for line in p.stdout:
@@ -73,7 +74,6 @@ def run_coarse_solver():
     copy_output_coarse_solver_last_time_slice_to_temporary_folder()
 
 def copy_output_coarse_solver_last_time_slice_to_temporary_folder():
-    print("calling copy_output_coarse_solver_last_time_slice_to_temporary_folder")
     #take output for end time, transfer it onto the finer grid and copy it to folder containing temporary files
     dir_end_time = opt.name_folders + "_coarse/" + str(opt.t_end)
     dir_temp = "temporary_files/" + str(opt.t_end)
@@ -86,24 +86,21 @@ def copy_output_coarse_solver_last_time_slice_to_temporary_folder():
     files = [f for f in listdir(dir_end_time) if isfile(join(dir_end_time, f))]
     for file in files:
         #construct file depending on whether it is phi or any of the other files (since they share the same structure)                                       
-        if file == "phi":
-            #outlines = conv.construct_fine_version_of_phi(inlines,outlines)
-            #WORKAROUND
-            print("copy from " + "workaround/phi" + str(opt.t_end) + " to " + dir_temp + "/phi")
-            shutil.copy("workaround/phi" + str(opt.t_end), dir_temp + "/phi")
-        else:
-            #read lines of file as input
-            f = open(dir_end_time + '/' + file, 'r')
-            inlines = f.readlines()
-            f.close()
+        #read lines of file as input
+        f = open(dir_end_time + '/' + file, 'r')
+        inlines = f.readlines()
+        f.close()
 
-            #open file for writing output
-            f = open(dir_temp + '/' + file, 'w')
-            outlines = []
+        #open file for writing output
+        f = open(dir_temp + '/' + file, 'w')
+        outlines = []
+
+        if file == "phi":
+            outlines = conv.construct_fine_version_of_phi(inlines,outlines,opt.t_end)
+        else:
             outlines = conv.construct_fine_version_of_other_files(inlines,outlines)
-            print("c_o_c_s_l_t_s_t_t_f: creating file " + "temporary_files/" + str(opt.t_end) + '/' + file + " with len(outlines) = " + str(len(outlines)))
-            f.writelines(outlines)
-            f.close()
+        f.writelines(outlines)
+        f.close()
 
 #setting the time parameters for a time slice
 #params:
@@ -147,23 +144,6 @@ def modify_param_controlDict(folder, param, value):
     f.writelines(outlines)
     f.close()
 
-#workaround needed for phi files as input for the fine solvers (look at top of this file for further information)
-def workaround(end_times):
-    print("++++++++")
-    print("WORKAROUND")
-    print("needed for correct phi files as input for the fine solvers")
-    print("++++++++")
-
-    for i in range(0,len(end_times)):
-        if not conv.is_int(end_times[i]):
-            print("++++++++")
-            print("ERROR")
-            print("number of time slices not working with current workaround")
-            print("++++++++")  
-            sys.exit()
-        if not end_times[i] == opt.t_end:
-            shutil.copy("workaround/phi" + str(end_times[i]), "openFoam_timeslice" + str(i+2) + "/" + str(end_times[i]) + "/phi")
-
 #setting the start values for a time slice by construction from the output of the coarse solver
 #formal:
 #U_j+1^0 = G(t_j , t_j+1 , U_j^0)
@@ -204,7 +184,7 @@ def set_initial_start_values_for_time_slice(time_slice, time_slice_start):
         outlines = []
         #construct file depending on whether it is phi or any of the other files (since they share the same structure)                                       
         if file == "phi":
-            outlines = conv.construct_fine_version_of_phi(inlines,outlines)
+            outlines = conv.construct_fine_version_of_phi(inlines,outlines,time_slice_start)
         else:
             outlines = conv.construct_fine_version_of_other_files(inlines,outlines)
         f.writelines(outlines)
@@ -220,7 +200,6 @@ def set_initial_start_values_for_time_slice(time_slice, time_slice_start):
         if file != "phi":
             f = open("temporary_files/" + str(int(time_slice_start)) + '/' + file, 'w')
             f.writelines(outlines)
-            print("s_i_v_f_t_s: creating file " + "temporary_files/" + str(int(time_slice_start)) + '/' + file + " with len(outlines) = " + str(len(outlines)))
             f.close()
 
 #running all fine solvers in parallel
@@ -232,7 +211,7 @@ def run_fine_solvers(counter):
     processes = []
     for time_slice in range(counter,opt.num_time_slices + 1):
         #run openFoam for this time slice
-        print("-----\nstarting the solver for time slice " + str(time_slice) + "\n-----")
+        print("----\nstarting the solver for time slice " + str(time_slice) + "\n----")
         p = run_openfoam(opt.name_folders + str(time_slice))
         processes.append(p)
 
@@ -251,54 +230,6 @@ def run_fine_solvers(counter):
 
     print("all fine solvers have finished")
 
-def set_start_values_for_coarse_solver_for_one_time_slice(prev_time_slice, prev_time_slice_end):
-    #delete current folders
-    #list all files in the directory
-    list_of_dir = os.listdir(opt.name_folders + "_coarse")
-    for item in list_of_dir:
-        #delete folders having an integer as name
-        if os.path.exists(opt.name_folders + "_coarse/" + item) and os.path.isdir(opt.name_folders + "_coarse/" + item) and conv.is_int(item):
-            shutil.rmtree(opt.name_folders + "_coarse/" + item)
-    #take output of fine solver and copy to coarse solver
-    fromDirectory = opt.name_folders + str(prev_time_slice) + '/' + str(int(prev_time_slice_end))
-    toDirectory = opt.name_folders + '_coarse/' + str(int(prev_time_slice_end)) 
-    shutil.copytree(fromDirectory, toDirectory)
-    #adjust files such that grid size matches
-    files = [f for f in listdir(toDirectory) if isfile(join(toDirectory, f))]
-    for file in files:
-        #read lines of current file as input
-        f = open(toDirectory + '/' + file, 'r')
-        inlines = f.readlines()
-        #open file for writing output
-        f = open(toDirectory + '/' + file, 'w')
-        outlines = []
-        #construct file depending on whether it is phi or any of the other files (since they share the same structure)                                       
-        if file == "phi":
-            outlines = conv.construct_coarse_version_of_phi(inlines,outlines,prev_time_slice_end)
-        else:
-            outlines = conv.construct_coarse_version_of_other_files(inlines,outlines)
-        f.writelines(outlines)
-        f.close()
-
-def run_coarse_solver_for_single_time_slice(time_slice, time_slice_start, time_slice_end):
-    #adjust documents in 'name_folders + "_coarse"' for the coarse solver
-    print("setting time parameters for coarse solver")
-    folder = opt.name_folders + "_coarse"
-    modify_param_controlDict(folder, "startTime", time_slice_start)
-    modify_param_controlDict(folder, "endTime", time_slice_end)
-    #run coarse solver
-    print("-----\n-----\nrunning the coarse solver for time slice " + str(time_slice) + "\n-----\n-----")
-    p = run_openfoam(opt.name_folders + "_coarse")
-
-    for line in p.stdout:
-       if line[0:4] == "Time":
-           print("computation completed for " + line)
-
-    p.wait()
-
-    if time_slice == opt.num_time_slices:
-        copy_output_coarse_solver_last_time_slice_to_temporary_folder()
-
 #adjust the starting values for all time slices
 #therefore we compute the end point of the previous time slice as described in the literature
 #formal:
@@ -315,7 +246,7 @@ def run_coarse_solver_for_single_time_slice(time_slice, time_slice_start, time_s
 # -> current input values (get from folder for time slice)
 def adjust_starting_values(time_slice_ends,adjustment,counter):
     for time_slice in range(counter + 1,opt.num_time_slices):
-        #comment lines starting with 'ex:' contain an example explaining the code
+        #comment lines starting with 'ex:' contain an example that might help to understand the code
         #ex: for time slice 3 (time_slice = 3): 
         #ex:                    value
         #ex:                     we
@@ -332,72 +263,48 @@ def adjust_starting_values(time_slice_ends,adjustment,counter):
         #
         #ex: (tse = time_slice_ends, ts = time_slice)
         #ex: U_3^k+1 = G(t_2 , t_3 , U_2^k+1) + F(t_2 , t_3 , U_2^k) - G(t_2 , t_3 , U_2^k)
+        previous_time_slice = time_slice - 1
+        end_previous_time_slice = time_slice_ends[time_slice - 2]
+        end_current_time_slice = time_slice_ends[time_slice - 1]
 
         #ex: G(t_2 , t_3 , U_2^k+1)
         #ex: we need to compute this from t_2 (time_slice_ends[1]) to t_3 (time_slice_ends[2]) with the coarse solver and the last start values for the fine solver
         #ex: so we need the coarse solver such that it has the computed values for t_2 (time_slice_ends[1])) from the fine solver as input
-        #ex: so we copy the output computed from the fine solver for time slice 2 (time_slice - 1) to the coarse solver and coarsen it
-        #ex: the start end time of time slice 2 (time_slice_ends[1] = time_slice_ends[time_slice - 2]) is the start time of time slice 3
-        set_start_values_for_coarse_solver_for_one_time_slice((time_slice - 1), time_slice_ends[time_slice - 2])
+        #ex: so we copy the output computed from the fine solver for time slice 2 (end_previous_time_slice) to the coarse solver and coarsen it
+        #ex: the start end time of time slice 2 (time_slice_ends[1] = end_previous_time_slice) is the start time of time slice 3
+        iterate.set_start_values_for_coarse_solver_for_one_time_slice(previous_time_slice, end_previous_time_slice)
         #ex: we now run the coarse solver only on time slice 3 (time_slice)
-        #ex: we need the starttime (time_slice_ends[1] = time_slice_ends[time_slice - 2]) and the endtime (time_slice_ends[2] = time_slice_ends[time_slice - 1])
-        run_coarse_solver_for_single_time_slice(time_slice, time_slice_ends[time_slice - 2], time_slice_ends[time_slice - 1])
+        #ex: we need the starttime (time_slice_ends[1] = end_previous_time_slice) and the endtime (time_slice_ends[2] = end_current_time_slice)
+        iterate.run_coarse_solver_for_single_time_slice(time_slice, end_previous_time_slice, end_current_time_slice)
 
         #G(t_j , t_j+1 , U_j^k+1)
         #ex:just computed values on time_slice 3 with coarse solver
         #not converted onto finer grid by now!
-        dir_coarse_this_iteration = opt.name_folders + "_coarse" + '/' + str(time_slice_ends[time_slice - 1])
+        dir_coarse_this_iteration = opt.name_folders + "_coarse" + '/' + str(end_current_time_slice)
         #F(t_j , t_j+1 , U_j^k)
         #obviously defined on finer grid
-        dir_fine_last_iteration = opt.name_folders + str(time_slice) + '/' + str(time_slice_ends[time_slice - 1])
+        dir_fine_last_iteration = opt.name_folders + str(time_slice) + '/' + str(end_current_time_slice)
         #G(t_j , t_j+1 , U_j^k)
         #can be found in folder for temporary files
         #so it's already transferred onto the finer grid
-        dir_coarse_last_iteration = "temporary_files/" + str(time_slice_ends[time_slice - 1])
+        dir_coarse_last_iteration = "temporary_files/" + str(end_current_time_slice)
         #values to compute:
         #same as dir_coarse_last_iteration
-        dir_new_fine_start_value = opt.name_folders + str(time_slice + 1) + '/' + str(time_slice_ends[time_slice - 1])
+        dir_new_fine_start_value = opt.name_folders + str(time_slice + 1) + '/' + str(end_current_time_slice)
         files = [f for f in listdir(dir_fine_last_iteration) if isfile(join(dir_fine_last_iteration, f))]
         for file in files:
             print("file: " + file)
             #transfer file from coarse solver for this iteration onto finer grid
-            if file == "phi":
-                #outlines1_fine = conv.construct_fine_version_of_phi(inlines1_coarse,outlines1_fine)
-                #WORKAROUND
-                #copy file
-                shutil.copy("workaround/phi" + str(time_slice_ends[time_slice - 1]), dir_coarse_this_iteration + "/phi_fine")
-            else:
-                f1_coarse = open(dir_coarse_this_iteration + '/' + file, 'r')
-                inlines1_coarse = f1_coarse.readlines()
-                outlines1_fine = []
-                outlines1_fine = conv.construct_fine_version_of_other_files(inlines1_coarse,outlines1_fine)
-                f1_coarse.close()
-                f1_fine = open(dir_coarse_this_iteration + '/' + file + "_fine",'w')
-                f1_fine.writelines(outlines1_fine)
-                f1_fine.close()
+            iterate.transfer_files_onto_finer_grid(file,time_slice_ends,time_slice,dir_coarse_this_iteration)
 
             #read lines of current 3 files as input
-            print("open files " + dir_coarse_this_iteration + '/' + file + "_fine, " + dir_fine_last_iteration + '/' + file + " and " + dir_coarse_last_iteration + '/' + file)
             f1 = open(dir_coarse_this_iteration + '/' + file + "_fine",'r')
             f2 = open(dir_fine_last_iteration + '/' + file, 'r')
             f3 = open(dir_coarse_last_iteration + '/' + file, 'r')
-            inlines1 = f1.readlines()
-            inlines2 = f2.readlines()
-            inlines3 = f3.readlines()
 
-            #construct output
-            outlines = []
-            if file == "phi":
-                outlines,adjustment = merge.merge_files_phi(inlines1, inlines2, inlines3, time_slice_ends[time_slice - 1],adjustment)
-            else:
-                outlines,adjustment = merge.merge_other_files(file, inlines1, inlines2, inlines3,outlines,adjustment)
+            outlines,adjustment = iterate.merge_files(file,f1,f2,f3,end_current_time_slice,adjustment)
 
-            #close input files
-            f1.close()
-            f2.close()
-            f3.close()
-
-            if time_slice_ends[time_slice - 1] != opt.t_end:
+            if end_current_time_slice != opt.t_end:
                 #write output
                 f_out = open(dir_new_fine_start_value + '/' + file, 'w')
                 f_out.writelines(outlines)
@@ -447,7 +354,7 @@ if __name__ == "__main__":
         set_timeparams_for_time_slice(time_slice,time_slice_start,time_slice_end)
         set_initial_start_values_for_time_slice(time_slice, time_slice_start)
 
-    workaround(end_times)
+    init.initial_workaround(end_times)
 
     #run fine solvers in parallel until convergence
     notconverged = True
@@ -484,3 +391,6 @@ if __name__ == "__main__":
 
         #increase counter since end of iteration is reached
         counter = counter + 1
+
+        #reset adjustment
+        adjustment = 0.0

@@ -1,66 +1,30 @@
-import numpy
+import subprocess
+import os
+from os import listdir
+from os.path import isfile, join
+
 import shutil
+import time
+import select
+import sys
+import numpy
+
+import parareal_openFoam as main_program
+import initialize as init
 import options as opt
+import merge_results as merge
+import iterate as iterate
 
 #NOT WORKING
 #this method should construct the finer phi files from the coarse ones
 #...but I don't understand by now how this conversion should work
-def construct_fine_version_of_phi(inlines,outlines):
-    firstpart_with_values = False
-    otherparts_with_values = False
-    processing_values = False           
-    counter = 1
-    part1 = ""
-    part2 = "" 
-    for line in inlines:
-        if is_int(line):
-            if not firstpart_with_values:
-                line = str(23200*2-(210+80+80)) + "\n"
-            else:
-                line = str(int(line) * 2) + "\n"
-            outlines.append(line)
-        elif (len(line) == 2 and ")" in line):
-            processing_values = False
-            outlines.append(part1)
-            outlines.append(part2)
-            part1 = ""
-            part2 = ""
-            outlines.append(line)
-        elif processing_values:
-            if otherparts_with_values:
-                outlines.append(line)
-            elif firstpart_with_values:
-                #needs 23200*2-(210+80+80) values 
-                #generated from the 5800*2-(105+40+40) values from the coarse file
-                #
-                #so number_of_grid_points*2 - (grid_points_top + grid_points_inlet + grid_points_outlet)
-                #
-                #by now this is done by taking the first x values 5 times 
-                #and the remaining y factors 4 times
-                #
-                #OF COURSE THIS DOES NOT CONSTRUCT A CORRECT FILE...!!!
-                #
-                if counter <= 370:
-                    part1 = part1 + line
-                    part1 = part1 + line
-                    part2 = part2 + line
-                    part1 = part1 + line
-                    part2 = part2 + line
-                    counter = counter + 1
-                else:
-                    part1 = part1 + line
-                    part2 = part2 + line
-                    part1 = part1 + line
-                    part2 = part2 + line
-        elif (len(line) == 2 and "(" in line):
-            processing_values = True
-            if not firstpart_with_values:
-                firstpart_with_values = True
-            else:
-                otherparts_with_values = True
-            outlines.append(line)
-        else:
-            outlines.append(line)
+def construct_fine_version_of_phi(inlines,outlines,time_slice_end):
+    print("+++WORKAROUND+++")
+    print("+for correct construction of fine phi files from coarse versions+")
+
+    f = open("workaround/phi" + str(time_slice_end), 'r')
+    outlines = f.readlines()
+
     return outlines
 
 #constructs the fine versions of all files except for phi from the output of the coarse solver
@@ -171,12 +135,11 @@ def construct_fine_version_of_other_files(inlines,outlines):
 #this method should construct the coarser phi files from the fine ones
 #...but I don't understand by now how this conversion should work
 def construct_coarse_version_of_phi(inlines,outlines,time_slice_end):
-    print("++++++++")
-    print("WORKAROUND")
-    print("needed for correct phi files as input for the fine solvers")
-    print("++++++++")
+    print("+++WORKAROUND+++")
+    print("+for correct construction of coarse phi files from fine versions+")
 
-    shutil.copy("workaround/phi" + str(time_slice_end) + "_c", opt.name_folders + '_coarse/' + str(int(time_slice_end)) + "/phi")
+    f = open("workaround/phi" + str(time_slice_end) + "_c", 'r')
+    outlines = f.readlines()
 
     return outlines
 
