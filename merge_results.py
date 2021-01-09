@@ -15,19 +15,6 @@ import initialize as init
 import options as opt
 import iterate as iterate
 
-def compute_new_phi_value_from_3_files(inlines1, inlines2, inlines3, outlines, adjustment, end_time):
-    #
-    #
-    #CURRENTLY JUST A WORKAROUND
-    #
-    #
-    print("+++WORKAROUND+++")
-    print("for merging 3 files at time " + str(end_time))
-    file_for_workaround = open("workaround/phi" + str(end_time),'r')
-    adjustment = adjustment + 0.0
-    outlines = file_for_workaround.readlines()
-    return outlines, adjustment
-
 #merging all files except for phi
 def compute_new_value_from_3_files_not_phi(inlines1, inlines2, inlines3, outlines, adjustment):
     #the files share the common structure, that

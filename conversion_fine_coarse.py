@@ -15,18 +15,6 @@ import options as opt
 import merge_results as merge
 import iterate as iterate
 
-#NOT WORKING
-#this method should construct the finer phi files from the coarse ones
-#...but I don't understand by now how this conversion should work
-def construct_fine_version_of_phi(inlines,outlines,time_slice_end):
-    print("+++WORKAROUND+++")
-    print("+for correct construction of fine phi files from coarse versions+")
-
-    f = open("workaround/phi" + str(time_slice_end), 'r')
-    outlines = f.readlines()
-
-    return outlines
-
 #constructs the fine versions of all files except for phi from the output of the coarse solver
 #params
 #inlines = lines from the coarse input file
@@ -129,18 +117,6 @@ def construct_fine_version_of_other_files(inlines,outlines):
         #for other lines (e.g. text) simply copy to output
         else:
             outlines.append(line)
-    return outlines
-
-#JUST A WORKAROUND AS FOR THE CONVERSION FROM COARSE TO FINE (see parareal_openFoam.py)
-#this method should construct the coarser phi files from the fine ones
-#...but I don't understand by now how this conversion should work
-def construct_coarse_version_of_phi(inlines,outlines,time_slice_end):
-    print("+++WORKAROUND+++")
-    print("+for correct construction of coarse phi files from fine versions+")
-
-    f = open("workaround/phi" + str(time_slice_end) + "_c", 'r')
-    outlines = f.readlines()
-
     return outlines
 
 #constructs the coarse versions of all files except for phi from the output of the fine solvers
