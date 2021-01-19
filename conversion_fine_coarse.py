@@ -32,7 +32,7 @@ def construct_fine_version_of_phi(inlines,outlines,time_slice_end):
 #inlines = lines from the coarse input file
 #outlines = lines for the new fine file
 def construct_fine_version_of_other_files(inlines,outlines):
-    #the files share the common structure, that 
+    #the files share the common structure, that
     #- the first block of values needs to be scaled by factor 4 (values in blocks)
     #- and the other parts need to be scaled by a factor of 2 (inlet/outlet)
     #Those blocks of values are surrounded by ( and ).
@@ -49,13 +49,13 @@ def construct_fine_version_of_other_files(inlines,outlines):
     #...
     firstpart_with_values = False
     otherparts_with_values = False
-    processing_values = False   
-    #for the scaling by factor 4 every entry 
-    #- has to be doubled in its 'line' (*width_of_the_block* successive boxes from one block) 
+    processing_values = False
+    #for the scaling by factor 4 every entry
+    #- has to be doubled in its 'line' (*width_of_the_block* successive boxes from one block)
     #- and then every 'line' needs to be doubled
     #the part variable is needed for the doubling of the 'line'
-    part = "" 
-    #counter is needed to keep track of the current box (only in the first part with values) 
+    part = ""
+    #counter is needed to keep track of the current box (only in the first part with values)
     counter = 1
     #process line after line from the input file
     for line in inlines:
@@ -77,8 +77,8 @@ def construct_fine_version_of_other_files(inlines,outlines):
             if otherparts_with_values:
                 outlines.append(line + line)
             #construct output from input depending on the current box
-            #every entry 
-            #- has to be doubled in its 'line' (*width_of_the_block* successive boxes from one block) 
+            #every entry
+            #- has to be doubled in its 'line' (*width_of_the_block* successive boxes from one block)
             #- and then every 'line' needs to be doubled
             elif firstpart_with_values:
                 if counter <= 100:
@@ -148,7 +148,7 @@ def construct_coarse_version_of_phi(inlines,outlines,time_slice_end):
 #inlines = lines from the fine input file
 #outlines = lines for the new coarse file
 def construct_coarse_version_of_other_files(inlines,outlines):
-    #the files share the common structure, that 
+    #the files share the common structure, that
     #- the first block of values needs to be scaled by factor 4 (values in blocks)
     #- and the other parts need to be scaled by a factor of 2 (inlet/outlet)
     #Those blocks of values are surrounded by ( and ).
@@ -165,13 +165,13 @@ def construct_coarse_version_of_other_files(inlines,outlines):
     #...
     firstpart_with_values = False
     otherparts_with_values = False
-    processing_values = False   
-    #for the scaling by factor 4 every entry 
+    processing_values = False
+    #for the scaling by factor 4 every entry
     #- two successive 'lines' need to be merged and
     #- in every line groups of two neighbor values need to be merged
     #the part variable is needed for memorizing the first 'line' that needs to be merged with a second 'line'
     part = []
-    #counter is needed to keep track of the current box (only in the first part with values) 
+    #counter is needed to keep track of the current box (only in the first part with values)
     counter = 1
     #true in first line and false in second line of two lines that should be merged
     first_line = True
@@ -203,8 +203,8 @@ def construct_coarse_version_of_other_files(inlines,outlines):
                     first_line = not first_line
                 counter = counter + 1
             #construct output from input depending on the current box
-            #every entry 
-            #- has to be doubled in its 'line' (*width_of_the_block* successive boxes from one block) 
+            #every entry
+            #- has to be doubled in its 'line' (*width_of_the_block* successive boxes from one block)
             #- and then every 'line' needs to be doubled
             elif firstpart_with_values:
                 if counter <= 400:
@@ -365,8 +365,4 @@ def merge_two_values(values_to_merge):
 #params:
 #v = value that should be checked
 def is_int(v):
-    try:
-        int(v)
-    except ValueError:
-        return False
-    return True
+    return isinstance(v, int)
