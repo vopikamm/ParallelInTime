@@ -365,4 +365,8 @@ def merge_two_values(values_to_merge):
 #params:
 #v = value that should be checked
 def is_int(v):
-    return isinstance(v, int)
+    try:
+        int(v)
+    except ValueError:
+        return False
+    return True
