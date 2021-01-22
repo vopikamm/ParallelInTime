@@ -1,5 +1,5 @@
 #number of time slices
-#due to the workaround this value is only flexible in the sense that 
+#due to the workaround this value is only flexible in the sense that
 #the start times for all time slices need to be integer values
 num_time_slices = 4
 #minimal number of intermediate times per timestep
@@ -17,4 +17,4 @@ dt_fine = 0.02
 #beginning of the name of folders created for the coarse solver and the time slices
 name_folders = "openFoam_timeslice"
 #tolerance needed for the check of convergence
-tolerance = 700
+tolerance = 300

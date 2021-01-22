@@ -30,14 +30,17 @@ def cleanup(name_folders):
 #params:
 #num_time_slices = number of time slices
 #name_folders = beginning of the name of the constructed folders
-def create_folders(num_time_slices, name_folders):
+def create_folders(num_time_slices, name_folders,counter):
     #create folder for coarse solver
-    fromDirectory = "openFoam"
-    toDirectory = name_folders + "_coarse"
-    shutil.copytree(fromDirectory, toDirectory)
+    fromDirectory = 'openFoam'
+    if counter is 1:
+        toDirectory = name_folders + "_coarse"
+        shutil.copytree(fromDirectory, toDirectory)
+
+
     #create folder for every time slices
     for time_slice in range(1,num_time_slices + 1):
-        toDirectory = name_folders + str(time_slice)
+        toDirectory = name_folders + str(time_slice) + '_' + str(counter)
         shutil.copytree(fromDirectory, toDirectory)
         print("created dir " + toDirectory)
 
@@ -45,10 +48,10 @@ def create_folders(num_time_slices, name_folders):
 #the file is already included by is named 'blockMeshDict_coarse'
 #params:
 #name_folders = beginning of the name of the constructed folders
-def replace_blockMeshDict(name_folders):
+def replace_blockMeshDict(name_folders, counter):
     #replace system/blockMeshDict by system/blockMeshDict_coarse
-    oldFilename = name_folders + '_coarse/system/blockMeshDict_coarse'
-    newFilename = name_folders + '_coarse/system/blockMeshDict'
+    oldFilename = name_folders + '_coarse' + '/system/blockMeshDict_coarse'
+    newFilename = name_folders + '_coarse' + '/system/blockMeshDict'
     if os.path.exists(newFilename) and os.path.isdir(newFilename):
         #delete old file if it exists
         shutil.rmtree(newFilename)
