@@ -83,13 +83,7 @@ def run_coarse_solver_for_single_time_slice(time_slice, time_slice_start, time_s
     main_program.modify_param_controlDict(folder, "endTime", time_slice_end)
     #run coarse solver
     print("----\nrunning the coarse solver for time slice " + str(time_slice) + "\n----")
-    p = main_program.run_openfoam(opt.name_folders + "_coarse")
-
-    for line in p.stdout:
-       if line[0:4] == "Time":
-           print("computation completed for " + line)
-
-    p.wait()
+    main_program.run_openfoam(opt.name_folders + "_coarse")
 
     if time_slice == opt.num_time_slices:
         main_program.copy_output_coarse_solver_last_time_slice_to_temporary_folder()

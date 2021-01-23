@@ -46,9 +46,10 @@ def run_openfoam(folder):
 
     #execute given solver and print output of time to console
     p2 = subprocess.Popen(['pisoFoam','-case',folder], stdout=subprocess.PIPE)
-
-    #returning of p2 might be senseful for parallelization...but not really needed now
-    return p2
+    for line in p2.stdout:
+       if line[0:4] == "Time":
+           print(folder + ":          " + line)
+    p2.wait()
 
 #running the coarse solver
 def run_coarse_solver():
@@ -63,13 +64,7 @@ def run_coarse_solver():
     modify_param_controlDict(folder, "writeInterval", write_interval)
     #run coarse solver
     print("----\nrunning the coarse solver\n----")
-    p = run_openfoam(opt.name_folders + "_coarse")
-
-    for line in p.stdout:
-       if line[0:4] == "Time":
-           print("computation completed for " + line)
-
-    p.wait()
+    run_openfoam(opt.name_folders + "_coarse")
 
     copy_output_coarse_solver_last_time_slice_to_temporary_folder()
 
@@ -162,38 +157,17 @@ def set_initial_start_values_for_time_slice(time_slice, time_slice_start):
     folder_start = opt.name_folders + str(time_slice) + '/' + str(int(time_slice_start))
     if os.path.exists(folder_start) and os.path.isdir(folder_start):
         shutil.rmtree(folder_start)
+    #create empty folder for start time
+    os.mkdir(folder_start)
     #delete 0 folder if it exists
     folder0 = opt.name_folders + str(time_slice) + '/0'
     if os.path.exists(folder0) and os.path.isdir(folder0):
         shutil.rmtree(folder0)
-    #take output of coarse solver and copy to fine solver
-    fromDirectory = opt.name_folders + '_coarse/' + str(int(time_slice_start)) 
-    toDirectory = opt.name_folders + str(time_slice) + '/' + str(int(time_slice_start))
-    shutil.copytree(fromDirectory, toDirectory)
-    #adjust files such that grid size matches
-    files = [f for f in listdir(toDirectory) if isfile(join(toDirectory, f))]
-    for file in files:                                    
-        if file != "phi":
-            #read lines of current file as input
-            f = open(opt.name_folders + str(time_slice) + '/' + str(int(time_slice_start)) + '/' + file, 'r')
-            inlines = f.readlines()
-            #open file for writing output
-            f = open(opt.name_folders + str(time_slice) + '/' + str(int(time_slice_start)) + '/' + file, 'w')
-            outlines = []
-            outlines = conv.construct_fine_version_of_other_files(inlines,outlines)
-            f.writelines(outlines)
-            f.close()
-
-            if not os.path.exists("temporary_files/" + str(int(time_slice_start))):
-                try:
-                    os.makedirs("temporary_files/" + str(int(time_slice_start)))
-                except OSError as exc:
-                    if exc.errno != errno.EEXIST:
-                        raise
-
-            f = open("temporary_files/" + str(int(time_slice_start)) + '/' + file, 'w')
-            f.writelines(outlines)
-            f.close()
+    #use mapFields to transfer output of the coarse solver onto the finer grid
+    wd = os.getcwd()
+    source = '../' + opt.name_folders + '_coarse'
+    p1 = subprocess.Popen(['mapFields',source,'-consistent'], cwd=wd + '/' + opt.name_folders + str(time_slice))
+    p1.wait()
     #remove phi file
     current_file = opt.name_folders + str(time_slice) + '/' + str(int(time_slice_start)) + "/phi"
     if os.path.exists(current_file):
@@ -210,21 +184,10 @@ def run_fine_solvers(counter):
     for time_slice in range(counter,opt.num_time_slices + 1):
         #run openFoam for this time slice
         print("----\nstarting the solver for time slice " + str(time_slice) + "\n----")
-        p = run_openfoam(opt.name_folders + str(time_slice))
-        processes.append(p)
+        run_openfoam(opt.name_folders + str(time_slice))
 
     #print output of processes running openFoam for the different time slices
-    streams = [p.stdout for p in processes]
-    while True:
-        rstreams, _, _ = select.select(streams, [], [])
-        for stream in rstreams:
-            line = stream.readline()
-            if line[0:4] == "Time":
-                print("computation completed for " + line)
-        if all(p.poll() is not None for p in processes):
-            break
-    for stream in streams:
-        print(stream.read())
+    
 
     print("all fine solvers have finished")
 
@@ -289,15 +252,35 @@ def adjust_starting_values(time_slice_ends,adjustment,counter):
         #values to compute:
         #same as dir_coarse_last_iteration
         dir_new_fine_start_value = opt.name_folders + str(time_slice + 1) + '/' + str(end_current_time_slice)
+
+        #create directory for the fine versions of the files from this iteration on the coarse grid
+        dir_coarse_this_iteration_temp = opt.name_folders + "_coarse_temp" + str(time_slice)
+        #delete temp folder if it exists
+        if os.path.exists(dir_coarse_this_iteration_temp) and os.path.isdir(dir_coarse_this_iteration_temp):
+            shutil.rmtree(dir_coarse_this_iteration_temp)
+        #create temp folder
+        os.mkdir(dir_coarse_this_iteration_temp)
+        #copy folders constant and system
+        shutil.copytree(opt.name_folders + str(time_slice) + '/constant', dir_coarse_this_iteration_temp + '/constant')
+        shutil.copytree(opt.name_folders + str(time_slice) + '/system', dir_coarse_this_iteration_temp + '/system')
+        #adjust start time in controlDict
+        modify_param_controlDict(dir_coarse_this_iteration_temp, "startTime", end_current_time_slice)
+
+        #create fine versions
+        wd = os.getcwd()
+        print("calling mapFields with source " + '../' + opt.name_folders + "_coarse and target " + dir_coarse_this_iteration_temp)
+        p1 = subprocess.Popen(['mapFields','../' + opt.name_folders + "_coarse",'-consistent'], cwd=dir_coarse_this_iteration_temp)
+        p1.wait()
+
+        input("Press Enter to continue...")
+
         files = [f for f in listdir(dir_fine_last_iteration) if isfile(join(dir_fine_last_iteration, f))]
         for file in files:
             if file != "phi":
                 print("file: " + file)
-                #transfer file from coarse solver for this iteration onto finer grid
-                iterate.transfer_files_onto_finer_grid(file,time_slice_ends,time_slice,dir_coarse_this_iteration)
 
                 #read lines of current 3 files as input
-                f1 = open(dir_coarse_this_iteration + '/' + file + "_fine",'r')
+                f1 = open(dir_coarse_this_iteration_temp + '/' + str(end_current_time_slice) + '/' + file,'r')
                 f2 = open(dir_fine_last_iteration + '/' + file, 'r')
                 f3 = open(dir_coarse_last_iteration + '/' + file, 'r')
 
@@ -308,6 +291,11 @@ def adjust_starting_values(time_slice_ends,adjustment,counter):
                     f_out = open(dir_new_fine_start_value + '/' + file, 'w')
                     f_out.writelines(outlines)
                     f_out.close()
+            #else:
+                #TODO: delete files
+        #delete temp folder if it exists
+        #if os.path.exists(dir_coarse_this_iteration_temp) and os.path.isdir(dir_coarse_this_iteration_temp):
+        #    shutil.rmtree(dir_coarse_this_iteration_temp)
     return adjustment
 
 #checks for convergence
@@ -375,6 +363,8 @@ if __name__ == "__main__":
         if counter == opt.num_time_slices:
             exit("exiting without reaching the given tolerance of " + str(opt.tolerance) + "\nadjustment is " + str(adjustment) + " in iteration " + str(counter))
         
+        input("Press Enter to continue...")
+
         #run all fine solvers in parallel
         run_fine_solvers(counter)
         
