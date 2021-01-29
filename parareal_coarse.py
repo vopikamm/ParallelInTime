@@ -16,6 +16,10 @@ def run_openfoam(folder):
     p1.wait()
     #execute given solver and print output of time to console
     p2 = subprocess.Popen(['pisoFoam','-case',folder], stdout=subprocess.PIPE)
+    for line in p2.stdout:
+        if str(line).find("Time") != -1:
+            print(folder + ':             ' + str(line))
+    p2.wait()
     return(p2)
 
 def run_fine_solvers(counter):
@@ -74,19 +78,21 @@ def create_fine_folders(num_time_slices, name_folders,counter):
     """
     Create and fill the respective folders for the fine solvers. Already computed fine solvers needed.
     """
-    fromDirectory = 'openFoam'
+    fromDir = 'openFoam'
 
     #output of the function, apparently necessary for iterations
     end_times = []
     for time_slice in range(1,num_time_slices + 1):
         #create folder for every time slices
         toDirectory = name_folders + str(time_slice) + '_' + str(counter)
-        shutil.copytree(fromDirectory, toDirectory)
+        shutil.copytree(fromDir, toDirectory)
 
         #setting start and end times
         time_slice_start = int(opt.t_start + diff_time_slices * (time_slice - 1))
         time_slice_end = int(time_slice_start + diff_time_slices)
         end_times.append(time_slice_end)
+
+        print("time slice =       ", time_slice)
 
         #change time parameters
         modify_param_controlDict(toDirectory, "startTime", time_slice_start)
@@ -104,7 +110,6 @@ def create_fine_folders(num_time_slices, name_folders,counter):
         #fill the time slice folders with the output of the coarse solver
         if time_slice == 1:
             print("no need to adjust start values for time slice 1")
-            return
 
         #delete folder for start time if it exists
         folder_start = opt.name_folders + str(time_slice) + '_' + str(counter) + '/' + str(int(time_slice_start))
@@ -118,6 +123,7 @@ def create_fine_folders(num_time_slices, name_folders,counter):
         fromDirectory = opt.name_folders + '_coarse_' + str(counter) + '/' + str(int(time_slice_start))
         toDirectory = opt.name_folders + str(time_slice) + '_' + str(counter) + '/' + str(int(time_slice_start))
         shutil.copytree(fromDirectory, toDirectory)
+
     return(end_times)
 
 
