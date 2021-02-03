@@ -11,7 +11,7 @@ t_start = 0
 #end time
 t_end = 100
 #coarse delta t
-dt_coarse = 0.02
+dt_coarse = 0.04
 #fine delta t
 dt_fine = 0.02
 #beginning of the name of folders created for the coarse solver and the time slices
