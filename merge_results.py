@@ -10,7 +10,6 @@ import sys
 import numpy
 
 import parareal_openFoam as main_program
-import conversion_fine_coarse as conv
 import initialize as init
 import options as opt
 import iterate as iterate
