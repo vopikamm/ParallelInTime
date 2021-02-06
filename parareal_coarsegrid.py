@@ -69,6 +69,7 @@ def create_coarse_folder(name_folders,counter):
     modify_param_controlDict(toDirectory, "startTime", opt.t_start)
     modify_param_controlDict(toDirectory, "endTime", opt.t_end)
     modify_param_controlDict(toDirectory, "deltaT", opt.dt_coarse)
+    modify_nu(toDirectory, opt.nu)
     #produce folder for every 'write_interval'-th timestep
     write_interval = ((opt.t_end - opt.t_start)/opt.dt_coarse) / opt.num_time_slices
     modify_param_controlDict(toDirectory, "writeInterval", write_interval)
@@ -98,6 +99,8 @@ def create_fine_folders(num_time_slices, name_folders,counter):
         modify_param_controlDict(toDirectory, "startTime", time_slice_start)
         modify_param_controlDict(toDirectory, "endTime", time_slice_end)
         modify_param_controlDict(toDirectory, "deltaT", opt.dt_fine)
+        #change viscosity
+        modify_nu(toDirectory, opt.nu)
 
         #produce folder for every 'write_interval'-th timestep
         #coarse_write_interval = ((opt.t_end - opt.t_start)/opt.dt_coarse) / opt.num_time_slices
@@ -151,6 +154,26 @@ def modify_param_controlDict(folder, param, value):
     f.writelines(outlines)
     f.close()
 
+def modify_nu(folder, value):
+    '''
+    Changing viscosity in transportProperties. Re = 0.1/nu
+    '''
+    #open controlDict file and read lines
+    f = open(folder + "/constant/transportProperties", 'r')
+    inlines = f.readlines()
+    #open controlDict file for writing
+    f = open(folder + "/constant/transportProperties", 'w')
+    outlines = []
+    #go through input line by line
+    for line in inlines:
+        #compare if the current line contains the parameter to modify
+        if (line[0:2] == "nu"):
+            #modify current line to contain the new value
+            fill = '                '[len("nu"):16]
+            line = "nu" + fill + "[0 2 -1 0 0 0 0] " + str(value) + ';\n'
+        outlines.append(line)
+    f.writelines(outlines)
+    f.close()
 
 def run_coarse_solver_for_single_time_slice(dir_fine_last, dir_coarse_last, counter, time_slice, time_slice_start, time_slice_end):
     """
