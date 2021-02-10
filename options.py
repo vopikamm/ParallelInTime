@@ -1,9 +1,7 @@
 #number of time slices
 #due to the workaround this value is only flexible in the sense that
 #the start times for all time slices need to be integer values
-num_time_slices = 10
-#minimal number of intermediate times per timestep
-#this value is only a minimal value
+num_time_slices = 10 #this value is only a minimal value
 #the real number of intermediate times might be higher to have working transitions between time slices
 min_num_intermediate_times_per_timestep = 3
 #start time
@@ -19,4 +17,4 @@ name_folders = "openFoam_timeslice"
 #tolerance needed for the check of convergence
 tolerance = 300
 #viscosity; Re = 0.1/nu
-nu = 1e-06
+nu = [0.01, 0.1]

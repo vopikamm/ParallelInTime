@@ -69,7 +69,7 @@ def create_coarse_folder(name_folders,counter):
     modify_param_controlDict(toDirectory, "startTime", opt.t_start)
     modify_param_controlDict(toDirectory, "endTime", opt.t_end)
     modify_param_controlDict(toDirectory, "deltaT", opt.dt_coarse)
-    modify_nu(toDirectory, opt.nu)
+
     #produce folder for every 'write_interval'-th timestep
     write_interval = ((opt.t_end - opt.t_start)/opt.dt_coarse) / opt.num_time_slices
     modify_param_controlDict(toDirectory, "writeInterval", write_interval)
@@ -99,8 +99,8 @@ def create_fine_folders(num_time_slices, name_folders,counter):
         modify_param_controlDict(toDirectory, "startTime", time_slice_start)
         modify_param_controlDict(toDirectory, "endTime", time_slice_end)
         modify_param_controlDict(toDirectory, "deltaT", opt.dt_fine)
-        #change viscosity
-        modify_nu(toDirectory, opt.nu)
+
+
 
         #produce folder for every 'write_interval'-th timestep
         #coarse_write_interval = ((opt.t_end - opt.t_start)/opt.dt_coarse) / opt.num_time_slices
@@ -154,15 +154,15 @@ def modify_param_controlDict(folder, param, value):
     f.writelines(outlines)
     f.close()
 
-def modify_nu(folder, value):
+def modify_nu(value):
     '''
     Changing viscosity in transportProperties. Re = 0.1/nu
     '''
     #open controlDict file and read lines
-    f = open(folder + "/constant/transportProperties", 'r')
+    f = open("openFoam/constant/transportProperties", 'r')
     inlines = f.readlines()
     #open controlDict file for writing
-    f = open(folder + "/constant/transportProperties", 'w')
+    f = open("openFoam/constant/transportProperties", 'w')
     outlines = []
     #go through input line by line
     for line in inlines:
@@ -174,6 +174,7 @@ def modify_nu(folder, value):
         outlines.append(line)
     f.writelines(outlines)
     f.close()
+
 
 def run_coarse_solver_for_single_time_slice(dir_fine_last, dir_coarse_last, counter, time_slice, time_slice_start, time_slice_end):
     """
@@ -323,72 +324,78 @@ def process_block_of_values(line1,line2,line3,part,offset_start,offset_end):
 
 
 if __name__ == "__main__":
-    #counter for the number of iterations
-    counter = 1
-    #clean up from earlier runs
-    cleanup(opt.name_folders)
+    #change nu
+    for n in range(0,len(opt.nu)):
+        modify_nu(opt.nu[n])
 
-    #initialize the coarse solver
-    create_coarse_folder(opt.name_folders, counter)
-
-    diff_time_slices = ((opt.t_end - opt.t_start) * 1.0)/opt.num_time_slices
-
-    print("t_start: " + str(opt.t_start)  + ", t_end: " + str(opt.t_end) + ", dt_fine: " + str(opt.dt_fine) + ", dt_coarse: " + str(opt.dt_coarse))
+        #counter for the number of iterations
+        counter = 1
+        #clean up from earlier runs
+        cleanup(opt.name_folders)
 
 
-    ################
-    # 1st iteration
-    ################
+        #initialize the coarse solver
+        create_coarse_folder(opt.name_folders, counter)
 
-    #run coarse solver from t_start until t_end to have starting values for the fine solvers
-    p = run_openfoam(opt.name_folders + '_coarse_' + str(counter))
-    p.wait()
+        diff_time_slices = ((opt.t_end - opt.t_start) * 1.0)/opt.num_time_slices
 
-    #initialize the fine folders
-    create_fine_folders(opt.num_time_slices,opt.name_folders, counter)
-
-    #Parallelization of the fine solvers
-    run_fine_solvers(counter)
+        print("t_start: " + str(opt.t_start)  + ", t_end: " + str(opt.t_end) + ", dt_fine: " + str(opt.dt_fine) + ", dt_coarse: " + str(opt.dt_coarse))
 
 
-    ###################
-    # other iterations
-    ###################
-    for iteration in range(2,opt.num_time_slices + 1):
+        ################
+        # 1st iteration
+        ################
 
-        # run the coarse solver for the current iteration
-        create_coarse_folder(opt.name_folders, iteration)
+        #run coarse solver from t_start until t_end to have starting values for the fine solvers
+        p = run_openfoam(opt.name_folders + '_coarse_' + str(counter))
+        p.wait()
 
-        for time_slice in range(1,opt.num_time_slices+1):
-
-            time_slice_start = int(opt.t_start + diff_time_slices * (time_slice - 1))
-            time_slice_end = int(time_slice_start + diff_time_slices)
-
-            dir_fine_last_iteration   = opt.name_folders + str(time_slice) + "_" + str(iteration-1)
-            dir_coarse_last_iteration = opt.name_folders + "_coarse_" + str(iteration)
-            dir_coarse_this_iteration = opt.name_folders + "_coarse_" + str(iteration+1)
-            print(time_slice_start)
-
-            run_coarse_solver_for_single_time_slice(dir_fine_last_iteration, dir_coarse_last_iteration, iteration, time_slice, time_slice_start, time_slice_end)
-
-        #remove temporary folder
-        shutil.rmtree(opt.name_folders + "_temp_")
-
-        # create fine folders for current iteration
-        create_fine_folders(opt.num_time_slices,opt.name_folders, iteration)
-
-        # parareal adjustment to get starting values for fine solver
-        for time_slice in range(1,opt.num_time_slices+1):
-
-            time_slice_start = int(opt.t_start + diff_time_slices * (time_slice - 1))
-            time_slice_end = int(time_slice_start + diff_time_slices)
-
-            dir_fine_last_iteration   = opt.name_folders + str(time_slice) + "_" + str(iteration-1)
-            dir_coarse_last_iteration = opt.name_folders + "_coarse_" + str(iteration)
-            dir_coarse_this_iteration = opt.name_folders + "_coarse_" + str(iteration+1)
-
-            toDirectory = opt.name_folders + str(time_slice) + "_" + str(iteration-1)
-            parareal_adjustment(dir_coarse_last_iteration, dir_coarse_this_iteration, dir_fine_last_iteration, toDirectory, time_slice_end)
+        #initialize the fine folders
+        create_fine_folders(opt.num_time_slices,opt.name_folders, counter)
 
         #Parallelization of the fine solvers
-        run_fine_solvers(iteration)
+        run_fine_solvers(counter)
+
+
+        ###################
+        # other iterations
+        ###################
+        for iteration in range(2,opt.num_time_slices + 1):
+
+            # run the coarse solver for the current iteration
+            create_coarse_folder(opt.name_folders, iteration)
+
+            for time_slice in range(1,opt.num_time_slices+1):
+
+                time_slice_start = int(opt.t_start + diff_time_slices * (time_slice - 1))
+                time_slice_end = int(time_slice_start + diff_time_slices)
+
+                dir_fine_last_iteration   = opt.name_folders + str(time_slice) + "_" + str(iteration-1)
+                dir_coarse_last_iteration = opt.name_folders + "_coarse_" + str(iteration)
+                dir_coarse_this_iteration = opt.name_folders + "_coarse_" + str(iteration+1)
+                print(time_slice_start)
+
+                run_coarse_solver_for_single_time_slice(dir_fine_last_iteration, dir_coarse_last_iteration, iteration, time_slice, time_slice_start, time_slice_end)
+
+            #remove temporary folder
+            shutil.rmtree(opt.name_folders + "_temp_")
+
+            # create fine folders for current iteration
+            create_fine_folders(opt.num_time_slices,opt.name_folders, iteration)
+
+            # parareal adjustment to get starting values for fine solver
+            for time_slice in range(1,opt.num_time_slices+1):
+
+                time_slice_start = int(opt.t_start + diff_time_slices * (time_slice - 1))
+                time_slice_end = int(time_slice_start + diff_time_slices)
+
+                dir_fine_last_iteration   = opt.name_folders + str(time_slice) + "_" + str(iteration-1)
+                dir_coarse_last_iteration = opt.name_folders + "_coarse_" + str(iteration)
+                dir_coarse_this_iteration = opt.name_folders + "_coarse_" + str(iteration+1)
+
+                toDirectory = opt.name_folders + str(time_slice) + "_" + str(iteration-1)
+                parareal_adjustment(dir_coarse_last_iteration, dir_coarse_this_iteration, dir_fine_last_iteration, toDirectory, time_slice_end)
+
+            #Parallelization of the fine solvers
+            run_fine_solvers(iteration)
+        os.system('ipython convergence.py')

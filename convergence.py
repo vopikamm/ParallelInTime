@@ -2,6 +2,7 @@ import pyvista as vtki
 import numpy as np
 import subprocess
 import options as opt
+import glob
 import os
 import shutil
 import math as m
@@ -78,20 +79,25 @@ if __name__ == "__main__":
         convergence.append(np.amax(diff_U))
         print(convergence[i-1])
 
-
+    #counting how many convergence graphs were created, will give an error when plotting if j > len(opt.nu)
+    j = len(glob.glob("conv*.png"))
 
     #plotting convergence:
     plt.figure()
     plt.plot(range(1,len(convergence)+1),convergence, color = 'midnightblue')
     plt.xlabel('# of iterations')
     plt.ylabel(r'$|U_{i}-U_{i-1}|_{max}$')
+    plt.title('Re= %1.1f' %(0.1/opt.nu[j]))
+    plt.savefig('convergence_nu_%1.4f.png'%opt.nu[j])
     plt.show()
 
     #plotting differences:
+    i=1
     for iteration in results[1:]:
         plotter = vtki.Plotter()
 
         # Add initial mesh
         plotter.add_mesh(iteration, scalars='diff_U')
         plotter.view_xy()
-        plotter.show()
+        plotter.show(screenshot="flow_nu_{:1.4f}_{}.png".format(opt.nu[j], i))
+        i+=1
