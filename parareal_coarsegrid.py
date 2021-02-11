@@ -2,8 +2,10 @@ import subprocess
 import os
 import shutil
 import sys
-import numpy
+import numpy as np
 import select
+import math as m
+import pyvista as vtki
 
 import options as opt
 
@@ -322,6 +324,64 @@ def process_block_of_values(line1,line2,line3,part,offset_start,offset_end):
 
     return new_value,value_fine_last_iteration
 
+def build_VTKs(iteration, time_step=opt.compared_time):
+    time_slice  = m.ceil(time_step*opt.num_time_slices/opt.t_end)
+    dir         = os.getcwd()
+    folder      = opt.name_folders + str(time_slice) + '_' + str(iteration)
+    os.chdir(dir + '/' + folder)
+
+    #delete VTK folder if it already exists
+    if os.path.exists('VTK'):
+        shutil.rmtree('VTK')
+
+    #create vtk files for all timesteps in the given timeslice
+    vtk_build = subprocess.run(['foamToVTK'], stdout=subprocess.DEVNULL)
+    os.chdir(dir)
+
+def converged(iteration, time_step=opt.compared_time, variable='U', method='L2'):
+    '''
+    Check if the results for the given variable at given time_step differ less then the chosen tolerance.
+    The norm used for this can be set to 'L2' or 'Maximum'.
+    '''
+    convergence = False
+    #Keydict of time to VTK file. Necessary, since folder names and timesteps still missmatch
+    time_to_vtk = {'0': 0, '5': 250, '10': 500, '15': 750, '20': 1000, '25': 1250, '30': 750,
+                    '35': 1000, '40': 1250, '45': 1500, '50': 1750, '55': 1500, '60': 1750,
+                    '65': 2000, '70': 2250, '75': 2500, '80': 2000, '85': 2250, '90': 2500,
+                     '95': 2750, '100': 3000}
+    #setting folder and path variables:
+    time_slice    = m.ceil(time_step*opt.num_time_slices/opt.t_end)
+    dir           = os.getcwd()
+    previous_path = dir + '/' + opt.name_folders + str(time_slice) + '_' + str(iteration-1) + '/VTK'
+    current_path  = dir + '/' + opt.name_folders + str(time_slice) + '_' + str(iteration) + '/VTK'
+
+    #load vtk files from previous iteration as pyvista objects
+    os.chdir(previous_path)
+
+    for files in os.listdir(previous_path):
+        if files.endswith(str(time_to_vtk[str(time_step)]) + ".vtk"):
+            previous_data = vtki.UnstructuredGrid(previous_path+'/'+files)
+
+    #load vtk files from current iteration as pyvista objects
+    os.chdir(current_path)
+
+    for files in os.listdir(current_path):
+        if files.endswith(str(time_to_vtk[str(time_step)]) + ".vtk"):
+            current_data = vtki.UnstructuredGrid(current_path+'/'+files)
+
+    diff = current_data.cell_arrays[variable] - previous_data.cell_arrays[variable]
+
+    #calculation of norms according to 'method'
+    if method is 'L2':
+        diff_norm = np.linalg.norm(diff)
+    if method is 'Maximum':
+        diff_norm = np.amax(abs(diff))
+
+    #check convergence:
+    if diff_norm <= opt.tolerance:
+        convergence = True
+    os.chdir(dir)
+    return(convergence,diff_norm)
 
 if __name__ == "__main__":
     #change nu
@@ -356,6 +416,8 @@ if __name__ == "__main__":
         #Parallelization of the fine solvers
         run_fine_solvers(counter)
 
+        #creating VTK folder for time_step:
+        build_VTKs(counter)
 
         ###################
         # other iterations
@@ -398,4 +460,16 @@ if __name__ == "__main__":
 
             #Parallelization of the fine solvers
             run_fine_solvers(iteration)
-        os.system('ipython convergence.py')
+
+            #creating VTK folder for time_step:
+            build_VTKs(iteration)
+
+            break_criterium, diff_norm = converged(iteration)
+
+            if break_criterium:
+                print('Difference between last consecutive iterations: ' + str(diff_norm))
+                break
+            else:
+                print('Not yet converged')
+
+        #os.system('ipython convergence.py')

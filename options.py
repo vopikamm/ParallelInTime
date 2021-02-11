@@ -14,7 +14,9 @@ dt_coarse = 0.04
 dt_fine = 0.02
 #beginning of the name of folders created for the coarse solver and the time slices
 name_folders = "openFoam_timeslice"
+#time at which to check for convergence
+compared_time = 60
 #tolerance needed for the check of convergence
-tolerance = 300
+tolerance = 0.0001
 #viscosity; Re = 0.1/nu
-nu = [0.01, 0.1]
+nu = [0.01]#, 0.1]
