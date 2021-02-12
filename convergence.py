@@ -23,6 +23,24 @@ def loading_vtk(time_step = 60):
     iter_exists = True
     iteration   = 1
 
+    #change directory
+    os.chdir(dir + '/reference')
+
+    #delete VTK folder if it already exists
+    if os.path.exists('VTK'):
+        shutil.rmtree('VTK')
+
+    #create vtk files for all timesteps in timeslice
+    vtk_build = subprocess.run(['foamToVTK'], stdout=subprocess.DEVNULL)
+
+    #load vtk files as pyvista objects
+    os.chdir('VTK')
+    vtk_dir = os.getcwd()
+    for files in os.listdir(vtk_dir):
+        if files.endswith("3000.vtk"):
+            reference = vtki.UnstructuredGrid(vtk_dir+'/'+files)
+    os.chdir(dir)
+
     #stops when last iteration is reached
     while iter_exists:
         folder    = opt.name_folders + str(time_slice) + '_' + str(iteration)
@@ -51,7 +69,7 @@ def loading_vtk(time_step = 60):
         else:
             iter_exists = False
 
-    return(data)
+    return(data, reference)
 
 
 
@@ -65,31 +83,42 @@ if __name__ == "__main__":
                      '95': 2750, '100': 3000}
 
     #Loading results from all iteration at time_step to vtk object.
-    results = loading_vtk(time_step = 60)
+    results, reference = loading_vtk(time_step = 60)
 
     #computing differences between the iterations at same, given timestep
 
-    convergence    = []
+    convergence     = []
+    convergence_ref = []
     for i in range(1,len(results)):
         #compute difference of velocity outputs
-        diff_U = results[i].cell_arrays['U']-results[i-1].cell_arrays['U']
+        diff_U   = results[i].cell_arrays['U']-results[i-1].cell_arrays['U']
+        diff_ref = results[i].cell_arrays['U']-reference.cell_arrays['U']
         results[i].add_field_array(diff_U, 'diff_U')
+        results[i].add_field_array(diff_ref, 'diff_ref')
 
         #chose maximum-norm for now
-        convergence.append(np.amax(diff_U))
-        print(convergence[i-1])
+        convergence.append(np.amax(abs(diff_U)))
+        convergence_ref.append(np.max(abs(diff_ref)))
+        print(convergence[i-1], convergence_ref[i-1] )
 
     #counting how many convergence graphs were created, will give an error when plotting if j > len(opt.nu)
     j = len(glob.glob("conv*.png"))
 
     #plotting convergence:
-    plt.figure()
-    plt.plot(range(1,len(convergence)+1),convergence, color = 'midnightblue')
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twinx()
+    ax1.plot(range(2,len(convergence)+2),convergence, color = 'midnightblue', label='against previous iteration')
+    ax2.plot(range(2,len(convergence_ref)+2),convergence_ref, color = 'darkred', label='against reference solution')
     plt.xlabel('# of iterations')
-    plt.ylabel(r'$|U_{i}-U_{i-1}|_{max}$')
-    plt.title('Re= %1.1f' %(0.1/opt.nu[j]))
-    plt.savefig('convergence_nu_%1.4f.png'%opt.nu[j])
+    ax1.set_ylabel(r'$| |_{max}$ aginst previous iteration',color='midnightblue')
+    ax2.set_ylabel(r'$| |_{max}$ aginst reference solution',color='darkred')
+    ax1.tick_params(axis='y', labelcolor='midnightblue')
+    ax2.tick_params(axis='y', labelcolor='darkred')
+    ax2.set_ylim([0, max(convergence_ref)])
+    #plt.title('Re= %1.1f' %(0.1/opt.nu[j]))
+    #plt.savefig('convergence_nu_%1.4f.png'%opt.nu[j])
     plt.show()
+
 
     #plotting differences:
     i=1
@@ -99,5 +128,6 @@ if __name__ == "__main__":
         # Add initial mesh
         plotter.add_mesh(iteration, scalars='diff_U')
         plotter.view_xy()
-        plotter.show(screenshot="flow_nu_{:1.4f}_{}.png".format(opt.nu[j], i))
+        plotter.show()
+        #plotter.show(screenshot="flow_nu_{:1.4f}_{}.png".format(opt.nu[j], i))
         i+=1

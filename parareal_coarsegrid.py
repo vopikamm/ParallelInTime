@@ -383,7 +383,45 @@ def converged(iteration, time_step=opt.compared_time, variable='U', method='L2')
     os.chdir(dir)
     return(convergence,diff_norm)
 
+def reference_run():
+    """
+    Run the solver on fine grid once to check for convergence to true solution.
+    """
+    #create folder for coarse solver
+    fromDirectory = 'openFoam'
+    toDirectory = 'reference'
+
+    if os.path.exists(toDirectory):
+        print('Reference solution already calculated')
+        return
+
+    shutil.copytree(fromDirectory, toDirectory)
+
+    #adjust parameters in the coarse solver folder
+    modify_param_controlDict(toDirectory, "startTime", opt.t_start)
+    modify_param_controlDict(toDirectory, "endTime", opt.t_end)
+    modify_param_controlDict(toDirectory, "deltaT", opt.dt_fine)
+
+    fine_write_interval = ((opt.t_end - opt.t_start)/opt.dt_fine) / opt.num_time_slices
+    num_intermediate_steps = opt.min_num_intermediate_times_per_timestep
+    # while (coarse_write_interval % num_intermediate_steps) != 0:
+    while (fine_write_interval % num_intermediate_steps) != 0:
+        num_intermediate_steps = num_intermediate_steps + 1
+    #write_interval = coarse_write_interval / num_intermediate_steps
+    write_interval = fine_write_interval / num_intermediate_steps
+    modify_param_controlDict(toDirectory, "writeInterval", write_interval)
+
+    #run fine solver
+    print("running the fine solver once for convergence")
+    p = run_openfoam(toDirectory)
+
+    for line in p.stdout:
+       if line[0:4] == "Time":
+           print("computation completed for " + line)
+
 if __name__ == "__main__":
+    #Run the fine solver once for reference
+    reference_run()
     #change nu
     for n in range(0,len(opt.nu)):
         modify_nu(opt.nu[n])
