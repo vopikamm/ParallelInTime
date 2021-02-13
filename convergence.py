@@ -93,13 +93,33 @@ if __name__ == "__main__":
         #compute difference of velocity outputs
         diff_U   = results[i].cell_arrays['U']-results[i-1].cell_arrays['U']
         diff_ref = results[i].cell_arrays['U']-reference.cell_arrays['U']
+
+
+
+        points = results[i].points
+        array  = results[i].point_arrays['U'] - reference.point_arrays['U']
+        X      = points[:,0]
+
+        for j in range(0,len(X)-1):
+            if X[j] <= 5:
+                array[j,:] = 0
+
         results[i].add_field_array(diff_U, 'diff_U')
         results[i].add_field_array(diff_ref, 'diff_ref')
 
+
+
+
+
         #chose maximum-norm for now
         convergence.append(np.amax(abs(diff_U)))
-        convergence_ref.append(np.max(abs(diff_ref)))
+        convergence_ref.append(np.amax(abs(array[:,0])))
+
+        #chose L2-norm
+        #convergence.append(np.linalg.norm(diff_U))
+        #convergence_ref.append(np.linalg.norm(array[:,0]))
         print(convergence[i-1], convergence_ref[i-1] )
+        print(len(diff_U))
 
     #counting how many convergence graphs were created, will give an error when plotting if j > len(opt.nu)
     j = len(glob.glob("conv*.png"))
@@ -126,7 +146,7 @@ if __name__ == "__main__":
         plotter = vtki.Plotter()
 
         # Add initial mesh
-        plotter.add_mesh(iteration, scalars='diff_U')
+        plotter.add_mesh(iteration, scalars='diff_ref')
         plotter.view_xy()
         plotter.show()
         #plotter.show(screenshot="flow_nu_{:1.4f}_{}.png".format(opt.nu[j], i))
