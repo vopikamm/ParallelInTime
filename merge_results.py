@@ -15,19 +15,6 @@ import initialize as init
 import options as opt
 import iterate as iterate
 
-def compute_new_phi_value_from_3_files(inlines1, inlines2, inlines3, outlines, adjustment, end_time):
-    #
-    #
-    #CURRENTLY JUST A WORKAROUND
-    #
-    #
-    print("+++WORKAROUND+++")
-    print("for merging 3 files at time " + str(end_time))
-    file_for_workaround = open("workaround/phi" + str(end_time),'r')
-    adjustment = adjustment + 0.0
-    outlines = file_for_workaround.readlines()
-    return outlines, adjustment
-
 #merging all files except for phi
 def compute_new_value_from_3_files_not_phi(inlines1, inlines2, inlines3, outlines, adjustment):
     #the files share the common structure, that
@@ -49,7 +36,7 @@ def compute_new_value_from_3_files_not_phi(inlines1, inlines2, inlines3, outline
         print("len2 " + str(len(inlines2)))
         print("len3 " + str(len(inlines3)))
         exit("ERROR: not able to merge files")
-    processing_values = False   
+    processing_values = False
 
     #U_j+1^k+1 = G(t_j , t_j+1 , U_j^k+1) + F(t_j , t_j+1 , U_j^k) - G(t_j , t_j+1 , U_j^k)
     result = 0.0
@@ -102,7 +89,7 @@ def process_block_of_values(line1,line2,line3,part,offset_start,offset_end):
     value_fine_last_iteration = float(((line2.split(" "))[part])[offset_start:offset_end])
     #G(t_j , t_j+1 , U_j^k)
     value_coarse_last_iteration = float(((line3.split(" "))[part])[offset_start:offset_end])
-    
+
     #U_j+1^k+1 = G(t_j , t_j+1 , U_j^k+1) + F(t_j , t_j+1 , U_j^k) - G(t_j , t_j+1 , U_j^k)
     new_value = value_coarse_this_iteration + value_fine_last_iteration - value_coarse_last_iteration
 
