@@ -19,4 +19,7 @@ compared_time = 60
 #tolerance needed for the check of convergence
 tolerance = 0.0001
 #viscosity; Re = 0.1/nu
-nu = [0.01]#, 0.1]
+#nu = [x / 1e6 for x in range(40, 62,2)]
+#nu = [0.1, 0.004, 0.002, 0.001, 0.0004, 0.0002, 0.000125, 0.0001, 8e-5, 7e-5]
+#nu = [x / 1e4 for x in range(4,11)]
+nu = [0.0001, 0.0002, 0.0003, 0.0004, 0.0005, 0.0006, 0.0007, 0.0008, 0.0009, 0.001]

@@ -10,7 +10,11 @@ from matplotlib import pyplot as plt
 
 
 
-
+#Keydict of time to VTK file. Necessary, since folder names and timesteps still missmatch
+time_to_vtk = {'0': 0, '5': 250, '10': 500, '15': 750, '20': 1000, '25': 1250, '30': 750,
+                '35': 1000, '40': 1250, '45': 1500, '50': 1750, '55': 1500, '60': 1750,
+                '65': 2000, '70': 2250, '75': 2500, '80': 2000, '85': 2250, '90': 2500,
+                 '95': 2750, '100': 3000}
 
 def loading_vtk(time_step = 60):
     """
@@ -71,22 +75,7 @@ def loading_vtk(time_step = 60):
 
     return(data, reference)
 
-
-
-
-if __name__ == "__main__":
-
-    #Keydict of time to VTK file. Necessary, since folder names and timesteps still missmatch
-    time_to_vtk = {'0': 0, '5': 250, '10': 500, '15': 750, '20': 1000, '25': 1250, '30': 750,
-                    '35': 1000, '40': 1250, '45': 1500, '50': 1750, '55': 1500, '60': 1750,
-                    '65': 2000, '70': 2250, '75': 2500, '80': 2000, '85': 2250, '90': 2500,
-                     '95': 2750, '100': 3000}
-
-    #Loading results from all iteration at time_step to vtk object.
-    results, reference = loading_vtk(time_step = 60)
-
-    #computing differences between the iterations at same, given timestep
-
+def convergence(results,reference):
     convergence     = []
     convergence_ref = []
     for i in range(1,len(results)):
@@ -114,12 +103,18 @@ if __name__ == "__main__":
         #chose maximum-norm for now
         convergence.append(np.amax(abs(diff_U)))
         convergence_ref.append(np.amax(abs(array[:,0])))
+    return(results, convergence, convergence_ref)
 
-        #chose L2-norm
-        #convergence.append(np.linalg.norm(diff_U))
-        #convergence_ref.append(np.linalg.norm(array[:,0]))
-        print(convergence[i-1], convergence_ref[i-1] )
-        print(len(diff_U))
+if __name__ == "__main__":
+
+
+
+    #Loading results from all iteration at time_step to vtk object.
+    results, reference = loading_vtk(time_step = 60)
+
+    #computing differences between the iterations at same, given timestep
+
+    results_diff, convergence, convergence_ref = convergence(results,reference)
 
     #counting how many convergence graphs were created, will give an error when plotting if j > len(opt.nu)
     j = len(glob.glob("conv*.png"))
@@ -142,7 +137,7 @@ if __name__ == "__main__":
 
     #plotting differences:
     i=1
-    for iteration in results[1:]:
+    for iteration in results_diff[1:]:
         plotter = vtki.Plotter()
 
         # Add initial mesh

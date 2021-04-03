@@ -6,8 +6,11 @@ import numpy as np
 import select
 import math as m
 import pyvista as vtki
+import pandas as pd
+from multiprocessing.dummy import Pool
 
 import options as opt
+import convergence as conv
 
 def run_openfoam(folder):
     '''
@@ -338,7 +341,7 @@ def build_VTKs(iteration, time_step=opt.compared_time):
     vtk_build = subprocess.run(['foamToVTK'], stdout=subprocess.DEVNULL)
     os.chdir(dir)
 
-def converged(iteration, time_step=opt.compared_time, variable='U', method='L2'):
+def converged(iteration, time_step=opt.compared_time, variable='U', method='L2', reference = False):
     '''
     Check if the results for the given variable at given time_step differ less then the chosen tolerance.
     The norm used for this can be set to 'L2' or 'Maximum'.
@@ -422,6 +425,11 @@ def reference_run():
 if __name__ == "__main__":
     #Run the fine solver once for reference
     reference_run()
+
+    #saving the results for different nus in pandas dataframe
+    convergence_list     = []
+    convergence_ref_list = []
+
     #change nu
     for n in range(0,len(opt.nu)):
         modify_nu(opt.nu[n])
@@ -451,8 +459,23 @@ if __name__ == "__main__":
         #initialize the fine folders
         create_fine_folders(opt.num_time_slices,opt.name_folders, counter)
 
+        #Here the resources for the parallelization are checked and chosen according to the used system
+        available_cpus = os.cpu_count()
+        if available_cpus < opt.num_time_slices:
+            used_cpus = available_cpus
+        else:
+            used_cpus = opt.num_time_slices
+
+        pool = Pool(used_cpus)
+
+        fine_folders = []
+
+        for time_slice in range(opt.num_time_slices + 1):
+            fine_folders.append(opt.name_folders + str(time_slice) + '_' + str(counter))
+
         #Parallelization of the fine solvers
-        run_fine_solvers(counter)
+        #run_fine_solvers(counter)
+        pool.map(run_openfoam, fine_folders)
 
         #creating VTK folder for time_step:
         build_VTKs(counter)
@@ -460,10 +483,18 @@ if __name__ == "__main__":
         ###################
         # other iterations
         ###################
+        num_iterations = []
         for iteration in range(2,opt.num_time_slices + 1):
-
+            num_iterations.append(str(iteration-1))
             # run the coarse solver for the current iteration
             create_coarse_folder(opt.name_folders, iteration)
+
+            #creating a list of slices for Parallelization
+            fine_folders = []
+            for time_slice in range(opt.num_time_slices + 1):
+                fine_folders.append(opt.name_folders + str(time_slice) + '_' + str(iteration))
+
+            pool = Pool(used_cpus)
 
             for time_slice in range(1,opt.num_time_slices+1):
 
@@ -497,7 +528,9 @@ if __name__ == "__main__":
                 parareal_adjustment(dir_coarse_last_iteration, dir_coarse_this_iteration, dir_fine_last_iteration, toDirectory, time_slice_end)
 
             #Parallelization of the fine solvers
-            run_fine_solvers(iteration)
+
+            pool.map(run_openfoam, fine_folders)
+            # run_fine_solvers(iteration)
 
             #creating VTK folder for time_step:
             build_VTKs(iteration)
@@ -509,5 +542,21 @@ if __name__ == "__main__":
                 break
             else:
                 print('Not yet converged')
+
+        results, reference  = conv.loading_vtk()
+        results_nu, convergence_nu, convergence_ref = conv.convergence(results,reference)
+
+        convergence_list.append(convergence_nu)
+        convergence_ref_list.append(convergence_ref)
+
+    convergence_df     = pd.DataFrame(np.array(convergence_list),columns=num_iterations)
+    convergence_ref_df = pd.DataFrame(np.array(convergence_ref_list),columns=num_iterations)
+
+    convergence_df['Nu'] = opt.nu
+    convergence_ref_df['Nu'] = opt.nu
+
+    #Saving the computed convergences for every mu as pandas DataFrame
+    convergence_df.set_index('Nu').to_pickle('convergence_final')
+    convergence_ref_df.set_index('Nu').to_pickle('convergence_ref_final')
 
         #os.system('ipython convergence.py')
