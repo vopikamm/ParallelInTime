@@ -395,8 +395,7 @@ def reference_run():
     toDirectory = 'reference'
 
     if os.path.exists(toDirectory):
-        print('Reference solution already calculated')
-        return
+        shutil.rmtree(toDirectory)
 
     shutil.copytree(fromDirectory, toDirectory)
 
@@ -423,9 +422,6 @@ def reference_run():
            print("computation completed for " + line)
 
 if __name__ == "__main__":
-    #Run the fine solver once for reference
-    reference_run()
-
     #saving the results for different nus in pandas dataframe
     convergence_list     = []
     convergence_ref_list = []
@@ -433,6 +429,8 @@ if __name__ == "__main__":
     #change nu
     for n in range(0,len(opt.nu)):
         modify_nu(opt.nu[n])
+        #Run the fine solver once for reference
+        reference_run()
 
         #counter for the number of iterations
         counter = 1
@@ -556,7 +554,7 @@ if __name__ == "__main__":
     convergence_ref_df['Nu'] = opt.nu
 
     #Saving the computed convergences for every mu as pandas DataFrame
-    convergence_df.set_index('Nu').to_pickle('convergence_final')
-    convergence_ref_df.set_index('Nu').to_pickle('convergence_ref_final')
+    convergence_df.set_index('Nu').to_pickle('convergence_mu')
+    convergence_ref_df.set_index('Nu').to_pickle('convergence_mu_ref')
 
         #os.system('ipython convergence.py')

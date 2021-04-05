@@ -12,8 +12,8 @@ import matplotlib as mpl
 #
 # conv_ref = pd.concat([conv_ref1,conv_ref2,conv_ref3], axis=0).sort_values(by=['Nu'])
 # conv = pd.concat([conv1,conv2,conv3], axis=0).sort_values(by=['Nu'])
-conv = pd.read_pickle('convergence_final').sort_values(by=['Nu'])
-conv_ref = pd.read_pickle('convergence_ref_final').sort_values(by=['Nu'])
+conv = pd.read_pickle('convergence_mu').sort_values(by=['Nu'])
+conv_ref = pd.read_pickle('convergence_mu_ref').sort_values(by=['Nu'])
 
 cmap = plt.get_cmap('viridis_r', len(conv.index))
 
