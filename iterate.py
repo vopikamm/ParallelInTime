@@ -14,17 +14,6 @@ import initialize as init
 import options as opt
 import merge_results as merge
 
-#def transfer_files_onto_finer_grid(file,time_slice_ends,time_slice,dir_coarse_this_iteration):
-#    if file != "phi":
-#        f1_coarse = open(dir_coarse_this_iteration + '/' + file, 'r')
-#        inlines1_coarse = f1_coarse.readlines()
-#        outlines1_fine = []
-#        outlines1_fine = conv.construct_fine_version_of_other_files(inlines1_coarse,outlines1_fine)
-#        f1_coarse.close()
-#        f1_fine = open(dir_coarse_this_iteration + '/' + file + "_fine",'w')
-#        f1_fine.writelines(outlines1_fine)
-#        f1_fine.close()
-
 def merge_files(file,f1,f2,f3,time,adjustment):
     #print("merging 3 versions of " + file + " at time " + str(time))
 

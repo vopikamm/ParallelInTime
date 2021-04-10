@@ -28,13 +28,6 @@ import iterate as iterate
 #- a folder openFoam 
 #              containing the folders 0, system and constant (original ones from OLAT) needed for openFoam runs
 
-#pending work:
-#- check if check of convergence is correct ... might be that I mixed something up there
-#        -> might also be interesting to check in theory how low the error can get. It obviously can't become 0 since a coarse file that is involved.
-#- Is it ok to look at one time slice less from iteration to iteration? I think this isn't done in the original Parareal but to me it makes sense.
-#- visualize results
-#
-
 #running open foam
 #params:
 #folder = folder containing the solver that should be run
@@ -136,7 +129,7 @@ def set_initial_start_values_for_time_slice(time_slice, time_slice_start,iterati
     p1 = subprocess.Popen(['mapFields',source,'-consistent'], cwd=wd + '/' + folder_timeslice, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
     p1.wait()
 
-#running all fine solvers in parallel
+#running all fine solvers NOT in parallel
 #start values already set before
 #params:
 #counter = iteration counter needed since from iteration to iteration there is always one time slice less to compute (reason is described in main)
@@ -293,11 +286,6 @@ def adjust_starting_values(time_slice_ends,time_slice_starts,adjustment,iteratio
                     f_out = open(dir_new_fine_start_value + '/' + file, 'w')
                     f_out.writelines(outlines)
                     f_out.close()
-            #else:
-                #TODO: delete files
-        #delete temp folder if it exists
-        #if os.path.exists(dir_coarse_this_iteration_temp) and os.path.isdir(dir_coarse_this_iteration_temp):
-        #    shutil.rmtree(dir_coarse_this_iteration_temp)
     return adjustment
 
 #checks for convergence
