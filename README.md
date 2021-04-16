@@ -18,3 +18,8 @@ convergence.py:
 plotting.py:
       - The figures presented in the result section of the report can be generated here after running parareal_coarsegrid.py with the desired
         parameters.
+
+convergence_mu, convergence_mu_ref: 
+      - These are short pandas arrays containing the convergence results from computational heavy runs for various viscosities. They are necessary to
+        produce the convergence plots for different nu values in plotting.py. 
+      
