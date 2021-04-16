@@ -77,6 +77,10 @@ def loading_vtk(time_step = 60):
     return(data, reference)
 
 def convergence(results,reference):
+    """
+    Function computes the L2 norm of the difference between velocity fields.
+    One result referring to previous iterations, one to the reference run.
+    """
     convergence     = []
     convergence_ref = []
     for i in range(1,len(results)):
@@ -103,6 +107,9 @@ def convergence(results,reference):
     return(results, convergence, convergence_ref)
 
 def plot_fields(array , field = 'U', savefig = None, label='U'):
+    """
+    Plotting function for the produced velocity fields.
+    """
     if type(savefig) == str:
         plotter = vtki.Plotter(off_screen = True)
         # Add initial mesh
@@ -117,50 +124,3 @@ def plot_fields(array , field = 'U', savefig = None, label='U'):
         plotter.add_scalar_bar(title = label, title_font_size=28, label_font_size=28, color='black', position_x =0.22)
         plotter.view_xy()
         plotter.show()
-
-
-
-
-if __name__ == "__main__":
-
-
-
-    #Loading results from all iteration at time_step to vtk object.
-    results, reference = loading_vtk(time_step = 60)
-
-    plot_fields(results[5], label = 'U in m/s', savefig = 'nu_0.0001.png')
-    #computing differences between the iterations at same, given timestep
-
-    results_diff, convergence, convergence_ref = convergence(results,reference)
-    plot_fields(results_diff[5], field = 'diff_ref', label = 'Difference to reference in m/s', savefig = 'nu_0.0001_diffref.png')
-    #
-    # #counting how many convergence graphs were created, will give an error when plotting if j > len(opt.nu)
-    # j = len(glob.glob("conv*.png"))
-    #
-    # #plotting convergence:
-    # fig, ax1 = plt.subplots()
-    # ax2 = ax1.twinx()
-    # ax1.plot(range(2,len(convergence)+2),convergence, color = 'midnightblue', label='against previous iteration')
-    # ax2.plot(range(2,len(convergence_ref)+2),convergence_ref, color = 'darkred', label='against reference solution')
-    # plt.xlabel('# of iterations')
-    # ax1.set_ylabel(r'$| |_{max}$ aginst previous iteration',color='midnightblue')
-    # ax2.set_ylabel(r'$| |_{max}$ aginst reference solution',color='darkred')
-    # ax1.tick_params(axis='y', labelcolor='midnightblue')
-    # ax2.tick_params(axis='y', labelcolor='darkred')
-    # ax2.set_ylim([0, max(convergence_ref)])
-    # #plt.title('Re= %1.1f' %(0.1/opt.nu[j]))
-    # #plt.savefig('convergence_nu_%1.4f.png'%opt.nu[j])
-    # plt.show()
-    #
-    #
-    # #plotting differences:
-    # i=1
-    # for iteration in results_diff[1:]:
-    #     plotter = vtki.Plotter()
-    #
-    #     # Add initial mesh
-    #     plotter.add_mesh(iteration, scalars='diff_ref')
-    #     plotter.view_xy()
-    #     plotter.show()
-    #     #plotter.show(screenshot="flow_nu_{:1.4f}_{}.png".format(opt.nu[j], i))
-    #     i+=1

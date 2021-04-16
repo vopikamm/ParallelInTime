@@ -554,7 +554,5 @@ if __name__ == "__main__":
     convergence_ref_df['Nu'] = opt.nu
 
     #Saving the computed convergences for every mu as pandas DataFrame
-    convergence_df.set_index('Nu').to_pickle('convergence_mu')
-    convergence_ref_df.set_index('Nu').to_pickle('convergence_mu_ref')
-
-        #os.system('ipython convergence.py')
+    #convergence_df.set_index('Nu').to_pickle('convergence_mu')
+    #convergence_ref_df.set_index('Nu').to_pickle('convergence_mu_ref')
